@@ -43,8 +43,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ci
           password: ${{ secrets.EC2_SSH_PASSWORD }}
-          source: "desarrollo2-catalogos-back/**"
-          target: "/home/ubuntu/catalogo/backend"
+          source: "**"
+          target: "/home/ubuntu/catalogo/api"
           strip_components: 1
           overwrite: true
           rm: true
