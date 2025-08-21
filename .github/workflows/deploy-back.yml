@@ -44,7 +44,7 @@ jobs:
           username: ci
           password: ${{ secrets.EC2_SSH_PASSWORD }}
           source: "**"
-          target: "/home/ubuntu/catalogo/api"
+          target: "/home/ubuntu/catalogo/api/src"
           strip_components: 1
           overwrite: true
           rm: true
