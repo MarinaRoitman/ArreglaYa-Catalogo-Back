@@ -15,7 +15,7 @@ app = FastAPI(
 # ===========================
 # Conexión a MongoDB
 # ===========================
-MONGO_URI = "mongodb://appUser:m9s018394@desarrollo2-catalogos.online:27017/catalogo?authSource=catalogo"
+MONGO_URI = "mongodb://appUser:m9s018394@mongo:27017/catalogo?authSource=catalogo"
 client = MongoClient(MONGO_URI)
 db = client["catalogo"]
 collection = db["items"]
