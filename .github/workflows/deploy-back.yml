@@ -1,0 +1,69 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-back
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: desarrollo2-catalogos-back
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Debug secrets (masked)
+        shell: bash
+        working-directory: .
+        run: |
+          set -e
+          echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
+          echo "EC2_USER: ${{ secrets.EC2_USER }}"
+          if [ -z "${{ secrets.EC2_SSH_PASSWORD }}" ]; then
+            echo "ERROR: Missing secret EC2_SSH_PASSWORD" >&2
+            exit 1
+          fi
+          LEN=$(printf "%s" "${{ secrets.EC2_SSH_PASSWORD }}" | wc -c | tr -d ' ')
+          HASH=$(printf "%s" "${{ secrets.EC2_SSH_PASSWORD }}" | sha256sum | cut -c1-12)
+          echo "EC2_SSH_PASSWORD length: ${LEN}"
+          echo "EC2_SSH_PASSWORD sha256 (first 12): ${HASH}"
+
+      - name: Copy backend code to EC2 (password auth)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          source: "desarrollo2-catalogos-back/**"
+          target: "/home/ubuntu/catalogo/backend"
+          strip_components: 1
+          overwrite: true
+          rm: true
+          timeout: 3m
+
+      - name: Restart backend container on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          script: |
+            set -e
+            cd /home/ubuntu/catalogo
+            echo "== Pulling updated images =="
+            sudo docker compose pull api || true
+            echo "== Rebuilding backend container =="
+            sudo docker compose build api
+            echo "== Restarting API container =="
+            sudo docker compose up -d api
+            echo "== Logs (last 30 lines) =="
+            sudo docker compose logs --tail=30 api
