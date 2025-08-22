@@ -7,7 +7,7 @@ from bson import ObjectId
 # Configuración de FastAPI
 # ===========================
 app = FastAPI(
-    title="API de prueba",
+    title="API de prueba superprueba",
     description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
     version="1.0.0"
 )
