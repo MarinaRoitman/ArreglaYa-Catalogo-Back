@@ -1,24 +1,27 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from pymongo import MongoClient
-from bson import ObjectId
+import mysql.connector
 
 # ===========================
 # Configuración de FastAPI
 # ===========================
 app = FastAPI(
-    title="API de prueba",
-    description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
-    version="1.0.0"
+    title="API de prueba superprueba",
+    description="CRUD con MySQL para probar CI/CD.",
+    version="2.0.0"
 )
 
 # ===========================
-# Conexión a MongoDB
+# Conexión a MySQL
 # ===========================
-MONGO_URI = "mongodb://appUser:m9s018394@desarrollo2-catalogos.online:27017/catalogo?authSource=catalogo"
-client = MongoClient(MONGO_URI)
-db = client["catalogo"]
-collection = db["items"]
+db_config = {
+    "host": "mysql",           # nombre del contenedor en docker-compose
+    "user": "appUser",
+    "password": "AppUser123",
+    "database": "catalogo"
+}
+conn = mysql.connector.connect(**db_config)
+cursor = conn.cursor(dictionary=True)
 
 # ===========================
 # Modelos
@@ -28,60 +31,53 @@ class Item(BaseModel):
     description: str | None = None
 
 class ItemInDB(Item):
-    id: str
-
-# ===========================
-# Helpers
-# ===========================
-def item_serializer(item) -> dict:
-    """Convierte ObjectId a string para JSON"""
-    return {
-        "id": str(item["_id"]),
-        "name": item["name"],
-        "description": item.get("description")
-    }
+    id: int
 
 # ===========================
 # Rutas CRUD
 # ===========================
 
-# Crear
 @app.post("/items", response_model=ItemInDB)
 def create_item(item: Item):
-    result = collection.insert_one(item.dict())
-    new_item = collection.find_one({"_id": result.inserted_id})
-    return item_serializer(new_item)
+    cursor.execute(
+        "INSERT INTO items (name, description) VALUES (%s, %s)",
+        (item.name, item.description)
+    )
+    conn.commit()
+    new_id = cursor.lastrowid
+    cursor.execute("SELECT * FROM items WHERE id = %s", (new_id,))
+    new_item = cursor.fetchone()
+    return new_item
 
-# Leer todos
 @app.get("/items", response_model=list[ItemInDB])
 def list_items():
-    items = [item_serializer(doc) for doc in collection.find()]
-    return items
+    cursor.execute("SELECT * FROM items")
+    return cursor.fetchall()
 
-# Leer uno
 @app.get("/items/{item_id}", response_model=ItemInDB)
-def get_item(item_id: str):
-    item = collection.find_one({"_id": ObjectId(item_id)})
+def get_item(item_id: int):
+    cursor.execute("SELECT * FROM items WHERE id = %s", (item_id,))
+    item = cursor.fetchone()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    return item_serializer(item)
+    return item
 
-# Actualizar
 @app.put("/items/{item_id}", response_model=ItemInDB)
-def update_item(item_id: str, item: Item):
-    result = collection.update_one(
-        {"_id": ObjectId(item_id)},
-        {"$set": item.dict()}
+def update_item(item_id: int, item: Item):
+    cursor.execute(
+        "UPDATE items SET name=%s, description=%s WHERE id=%s",
+        (item.name, item.description, item_id)
     )
-    if result.matched_count == 0:
+    conn.commit()
+    if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Item not found")
-    updated_item = collection.find_one({"_id": ObjectId(item_id)})
-    return item_serializer(updated_item)
+    cursor.execute("SELECT * FROM items WHERE id = %s", (item_id,))
+    return cursor.fetchone()
 
-# Eliminar
 @app.delete("/items/{item_id}")
-def delete_item(item_id: str):
-    result = collection.delete_one({"_id": ObjectId(item_id)})
-    if result.deleted_count == 0:
+def delete_item(item_id: int):
+    cursor.execute("DELETE FROM items WHERE id = %s", (item_id,))
+    conn.commit()
+    if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"message": "Item deleted"}
