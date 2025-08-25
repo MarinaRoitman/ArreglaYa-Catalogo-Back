@@ -1,29 +1,26 @@
+import os
+import mysql.connector
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import mysql.connector
-import os
-from dotenv import load_dotenv
-
-# Cargar variables .env (si existe)
-load_dotenv()
 
 # ===========================
 # Configuración de FastAPI
 # ===========================
 app = FastAPI(
     title="API de prueba superprueba",
-    description="CRUD con MySQL para probar CI/CD.",
-    version="2.0.0"
+    description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
+    version="1.0.0"
 )
 
 # ===========================
-# Conexión a MySQL
+# Configuración DB desde env
 # ===========================
 db_config = {
-    "host": os.getenv("DB_HOST", "127.0.0.1"),   # default local
-    "user": os.getenv("DB_USER", "appUser"),
-    "password": os.getenv("DB_PASS", "AppUser123"),
-    "database": os.getenv("DB_NAME", "catalogo")
+    "host": os.getenv("DB_HOST", "mysql"),  # en docker-compose el servicio se llama "mysql"
+    "port": int(os.getenv("DB_PORT", 3306)),
+    "user": os.getenv("MYSQL_USER", "appUser"),
+    "password": os.getenv("MYSQL_PASSWORD", "AppUser123"),
+    "database": os.getenv("MYSQL_DATABASE", "catalogo"),
 }
 
 conn = mysql.connector.connect(**db_config)
