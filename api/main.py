@@ -18,8 +18,8 @@ app = FastAPI(
 db_config = {
     "host": os.getenv("DB_HOST", "mysql"),  # en docker-compose el servicio se llama "mysql"
     "port": int(os.getenv("DB_PORT", 3306)),
-    "user": os.getenv("MYSQL_USER", "appUser"),
-    "password": os.getenv("MYSQL_PASSWORD", "AppUser123"),
+    "user": os.getenv("MYSQL_USER"),
+    "password": os.getenv("MYSQL_PASSWORD"),
     "database": os.getenv("MYSQL_DATABASE", "catalogo"),
 }
 
