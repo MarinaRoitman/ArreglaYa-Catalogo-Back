@@ -1,6 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import mysql.connector
+import os
+from dotenv import load_dotenv
+
+# Cargar variables .env (si existe)
+load_dotenv()
 
 # ===========================
 # Configuración de FastAPI
@@ -15,11 +20,12 @@ app = FastAPI(
 # Conexión a MySQL
 # ===========================
 db_config = {
-    "host": "mysql",           # nombre del contenedor en docker-compose
-    "user": "appUser",
-    "password": "AppUser123",
-    "database": "catalogo"
+    "host": os.getenv("DB_HOST", "127.0.0.1"),   # default local
+    "user": os.getenv("DB_USER", "appUser"),
+    "password": os.getenv("DB_PASS", "AppUser123"),
+    "database": os.getenv("DB_NAME", "catalogo")
 }
+
 conn = mysql.connector.connect(**db_config)
 cursor = conn.cursor(dictionary=True)
 
@@ -36,7 +42,6 @@ class ItemInDB(Item):
 # ===========================
 # Rutas CRUD
 # ===========================
-
 @app.post("/items", response_model=ItemInDB)
 def create_item(item: Item):
     cursor.execute(
@@ -46,8 +51,7 @@ def create_item(item: Item):
     conn.commit()
     new_id = cursor.lastrowid
     cursor.execute("SELECT * FROM items WHERE id = %s", (new_id,))
-    new_item = cursor.fetchone()
-    return new_item
+    return cursor.fetchone()
 
 @app.get("/items", response_model=list[ItemInDB])
 def list_items():
