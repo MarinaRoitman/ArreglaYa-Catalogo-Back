@@ -1,0 +1,13 @@
+# Archivos de entorno
+*.env
+.env
+.env.*
+
+# Archivos de dependencias de Docker
+*.log
+*.pid
+*.sock
+
+# Configuración local de VSCode/IDE
+.vscode/
+.idea/

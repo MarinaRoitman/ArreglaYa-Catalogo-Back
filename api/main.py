@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 import mysql.connector
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -15,6 +16,8 @@ app = FastAPI(
 # ===========================
 # Configuración DB desde env
 # ===========================
+load_dotenv()
+
 db_config = {
     "host": os.getenv("DB_HOST", "mysql"),  # en docker-compose el servicio se llama "mysql"
     "port": int(os.getenv("DB_PORT", 3306)),
