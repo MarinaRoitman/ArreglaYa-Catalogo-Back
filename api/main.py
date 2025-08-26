@@ -19,7 +19,9 @@ app = FastAPI(
 # Publicar las métricas de la API a Prometheus
 # ===========================
 
-Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+@app.on_event("startup")
+async def _startup():
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # ===========================
 # Configuración DB desde env
