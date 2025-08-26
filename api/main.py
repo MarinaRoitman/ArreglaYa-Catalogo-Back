@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import mysql.connector
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
+
 
 # ===========================
 # Configuración de FastAPI
@@ -12,6 +14,12 @@ app = FastAPI(
     description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
     version="1.0.0"
 )
+
+# ===========================
+# Publicar las métricas de la API a Prometheus
+# ===========================
+
+Instrumentator().instrument(app).expose(app)
 
 # ===========================
 # Configuración DB desde env
