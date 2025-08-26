@@ -34,7 +34,7 @@ app = FastAPI(
 # Prometheus Metrics
 # ===========================
 instrumentator = Instrumentator().instrument(app)
-instrumentator.expose(app, endpoint="/metrics")
+instrumentator.expose(app, endpoint="/metrics", include_in_schema=False, should_gzip=True)
 
 # ===========================
 # Modelos
