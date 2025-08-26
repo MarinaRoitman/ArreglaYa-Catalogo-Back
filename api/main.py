@@ -4,7 +4,17 @@ import mysql.connector
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
+from contextlib import asynccontextmanager
 
+# ===========================
+# Lifespan (inicialización y teardown)
+# ===========================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Se ejecuta antes de que arranque el server
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+    yield
+    # Se ejecuta al cerrar el server (si quisieras limpiar cosas)
 
 # ===========================
 # Configuración de FastAPI
@@ -12,16 +22,9 @@ from prometheus_fastapi_instrumentator import Instrumentator
 app = FastAPI(
     title="API de prueba superprueba",
     description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
-
-# ===========================
-# Publicar las métricas de la API a Prometheus
-# ===========================
-
-@app.on_event("startup")
-async def _startup():
-    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # ===========================
 # Configuración DB desde env
@@ -29,7 +32,7 @@ async def _startup():
 load_dotenv()
 
 db_config = {
-    "host": os.getenv("DB_HOST", "mysql"),  # en docker-compose el servicio se llama "mysql"
+    "host": os.getenv("DB_HOST", "mysql"),
     "port": int(os.getenv("DB_PORT", 3306)),
     "user": os.getenv("MYSQL_USER"),
     "password": os.getenv("MYSQL_PASSWORD"),
