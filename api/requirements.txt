@@ -1,3 +1,4 @@
+prometheus_fastapi_instrumentator
 python-dotenv
 fastapi
 uvicorn[standard]
