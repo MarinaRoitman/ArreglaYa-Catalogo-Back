@@ -4,7 +4,6 @@ import mysql.connector
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
-from contextlib import asynccontextmanager
 
 # ===========================
 # Configuración DB desde env
@@ -23,24 +22,19 @@ conn = mysql.connector.connect(**db_config)
 cursor = conn.cursor(dictionary=True)
 
 # ===========================
-# Lifespan
-# ===========================
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Instrumentator se engancha ANTES de que empiece el server
-    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
-    yield
-    # acá podés cerrar conexiones si querés
-
-# ===========================
 # Configuración de FastAPI
 # ===========================
 app = FastAPI(
     title="API de prueba superprueba",
     description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
+
+# ===========================
+# Prometheus Metrics
+# ===========================
+instrumentator = Instrumentator().instrument(app)
+instrumentator.expose(app, endpoint="/metrics")
 
 # ===========================
 # Modelos
