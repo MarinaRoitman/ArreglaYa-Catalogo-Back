@@ -11,3 +11,7 @@
 # Configuración local de VSCode/IDE
 .vscode/
 .idea/
+
+# otros
+*.pyc
+__pycache__/
