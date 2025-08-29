@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv
 import mysql.connector
+import contextlib
 
 load_dotenv()
 
@@ -19,8 +20,15 @@ db_config = {
     "database": os.getenv("MYSQL_DATABASE", "catalogo"),
 }
 
-conn = mysql.connector.connect(**db_config)
-cursor = conn.cursor(dictionary=True)
+@contextlib.contextmanager
+def get_connection():
+    conn = mysql.connector.connect(**db_config)
+    cursor = conn.cursor(dictionary=True)
+    try:
+        yield cursor,conn
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # URL de conexión a MySQL (para usar sqlalchemy (no me funcionó))

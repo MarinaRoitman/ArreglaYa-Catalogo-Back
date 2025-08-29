@@ -1,7 +1,8 @@
+# routes/prestadores.py
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from mysql.connector import Error
-from api.core.database import conn
+from api.core.database import get_connection
 from api.schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
 
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
@@ -10,13 +11,14 @@ router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
 @router.get("/", response_model=List[PrestadorOut])
 def list_prestadores(
     nombre: Optional[str] = None,
-    estado: Optional[str] = None,
-    calificacion: Optional[float] = None,
-    zona: Optional[str] = None,
-    precio_por_hora: Optional[float] = None,
-    especialidad: Optional[str] = None,
+    apellido: Optional[str] = None,
+    email: Optional[str] = None,
+    telefono: Optional[str] = None,
+    direccion: Optional[str] = None,
+    id_zona: Optional[int] = None,
 ):
     try:
+        conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         query = "SELECT * FROM prestadores WHERE 1=1"
         params = []
@@ -24,21 +26,21 @@ def list_prestadores(
         if nombre:
             query += " AND nombre LIKE %s"
             params.append(f"%{nombre}%")
-        if estado:
-            query += " AND estado = %s"
-            params.append(estado)
-        if calificacion:
-            query += " AND calificacion >= %s"
-            params.append(calificacion)
-        if zona:
-            query += " AND zona LIKE %s"
-            params.append(f"%{zona}%")
-        if precio_por_hora:
-            query += " AND precio_por_hora <= %s"
-            params.append(precio_por_hora)
-        if especialidad:
-            query += " AND especialidad LIKE %s"
-            params.append(f"%{especialidad}%")
+        if apellido:
+            query += " AND apellido LIKE %s"
+            params.append(f"%{apellido}%")
+        if email:
+            query += " AND email LIKE %s"
+            params.append(f"%{email}%")
+        if telefono:
+            query += " AND telefono LIKE %s"
+            params.append(f"%{telefono}%")
+        if direccion:
+            query += " AND direccion LIKE %s"
+            params.append(f"%{direccion}%")
+        if id_zona:
+            query += " AND id_zona = %s"
+            params.append(id_zona)
 
         cursor.execute(query, tuple(params))
         return cursor.fetchall()
@@ -46,23 +48,38 @@ def list_prestadores(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Crear un prestador
-@router.post("/", response_model=PrestadorOut)
-def create_prestador(prestador: PrestadorCreate):
+# Crear un prestador. No se usa hasta la segunda entrega.
+# @router.post("/", response_model=PrestadorOut)
+# def create_prestador(prestador: PrestadorCreate):
+#     try:
+#         conn = get_connection()
+#         cursor = conn.cursor(dictionary=True)
+#         query = """INSERT INTO prestadores 
+#                    (nombre, apellido, email, telefono, direccion, id_zona) 
+#                    VALUES (%s, %s, %s, %s, %s, %s)"""
+#         values = (
+#             prestador.nombre, prestador.apellido, prestador.email,
+#             prestador.telefono, prestador.direccion, prestador.id_zona
+#         )
+#         cursor.execute(query, values)
+#         conn.commit()
+#         new_id = cursor.lastrowid
+#         return { "id": new_id, **prestador.dict() }
+#     except Error as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Obtener un prestador por ID
+@router.get("/{prestador_id}", response_model=PrestadorOut)
+def get_prestador(prestador_id: int):
     try:
+        conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        query = """INSERT INTO prestadores 
-                   (nombre, email, direccion, telefono, estado, calificacion, zona, precio_por_hora, especialidad) 
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
-        values = (
-            prestador.nombre, prestador.email, prestador.direccion,
-            prestador.telefono, prestador.estado, prestador.calificacion,
-            prestador.zona, prestador.precio_por_hora, prestador.especialidad
-        )
-        cursor.execute(query, values)
-        conn.commit()
-        new_id = cursor.lastrowid
-        return { "id": new_id, **prestador.dict() }
+        cursor.execute("SELECT * FROM prestadores WHERE id = %s", (prestador_id,))
+        result = cursor.fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail="Prestador no encontrado")
+        return result
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -71,6 +88,7 @@ def create_prestador(prestador: PrestadorCreate):
 @router.patch("/{prestador_id}", response_model=PrestadorOut)
 def update_prestador(prestador_id: int, prestador: PrestadorUpdate):
     try:
+        conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         fields = []
         values = []
@@ -87,10 +105,11 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate):
         cursor.execute(query, tuple(values))
         conn.commit()
 
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Prestador no encontrado")
+
         cursor.execute("SELECT * FROM prestadores WHERE id=%s", (prestador_id,))
         result = cursor.fetchone()
-        if not result:
-            raise HTTPException(status_code=404, detail="Prestador no encontrado")
         return result
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -100,6 +119,7 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate):
 @router.delete("/{prestador_id}")
 def delete_prestador(prestador_id: int):
     try:
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM prestadores WHERE id=%s", (prestador_id,))
         conn.commit()
@@ -108,26 +128,3 @@ def delete_prestador(prestador_id: int):
         return {"detail": f"Prestador {prestador_id} eliminado correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-"""
-router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
-
-@router.post("/", response_model=PrestadorOut)
-def crear_prestador(prestador: PrestadorCreate, db: Session = Depends(get_db)):
-    nuevo = Prestador(**prestador.model_dump())
-    db.add(nuevo)
-    db.commit()
-    db.refresh(nuevo)
-    return nuevo
-
-@router.get("/", response_model=list[PrestadorOut])
-def listar_prestadores(db: Session = Depends(get_db)):
-    return db.query(Prestador).all()
-
-@router.get("/{prestador_id}", response_model=PrestadorOut)
-def obtener_prestador(prestador_id: int, db: Session = Depends(get_db)):
-    prestador = db.query(Prestador).get(prestador_id)
-    if not prestador:
-        raise HTTPException(status_code=404, detail="Prestador no encontrado")
-    return prestador
-"""

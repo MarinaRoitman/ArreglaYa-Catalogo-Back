@@ -1,29 +1,29 @@
+# schemas/prestador.py
 from pydantic import BaseModel
 from typing import Optional
+from .usuario import UsuarioBase, UsuarioOut
 
-class PrestadorBase(BaseModel):
-    nombre: str
+class PrestadorBase(UsuarioBase):
     email: str
-    direccion: Optional[str] = None
     telefono: Optional[str] = None
-    estado: Optional[str] = "Pendiente"
-    calificacion: Optional[float] = 0.0
-    zona: Optional[str] = None
-    precio_por_hora: Optional[float] = None
-    especialidad: Optional[str] = None
+    id_zona: Optional[int] = None
 
 class PrestadorCreate(PrestadorBase):
     pass
 
 class PrestadorUpdate(BaseModel):
-    nombre: Optional[str]
-    direccion: Optional[str]
-    telefono: Optional[str]
-    estado: Optional[str]
-    calificacion: Optional[float]
-    zona: Optional[str]
-    precio_por_hora: Optional[float]
-    especialidad: Optional[str]
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    direccion: Optional[str] = None
+    email: Optional[str] = None
+    telefono: Optional[str] = None
+    id_zona: Optional[int] = None
 
-class PrestadorOut(PrestadorBase):
+class PrestadorOut(BaseModel):
     id: int
+    nombre: str
+    apellido: str
+    direccion: Optional[str] = None
+    email: str
+    telefono: Optional[str] = None
+    id_zona: Optional[int] = None
