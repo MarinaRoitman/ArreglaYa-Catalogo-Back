@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
-from ..schemas.prestador import PrestadorCreate, PrestadorOut
-from ..core.database import get_connection
-from ..core.security import get_password_hash, verify_password, create_access_token
+from schemas.prestador import PrestadorCreate, PrestadorOut
+from core.database import get_connection
+from core.security import get_password_hash, verify_password, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
