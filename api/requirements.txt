@@ -4,3 +4,4 @@ fastapi
 uvicorn[standard]
 pymongo
 mysql-connector-python
+sqlalchemy
