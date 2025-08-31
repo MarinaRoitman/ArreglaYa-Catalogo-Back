@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
 from core.database import get_connection
 from routes import prestadores, auth
+from fastapi.middleware.cors import CORSMiddleware 
 
 # ===========================
 # Configuración de FastAPI
@@ -15,6 +16,16 @@ app = FastAPI(
 
 app.include_router(prestadores.router)
 app.include_router(auth.router)
+
+#CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # ===========================
 # Prometheus Metrics
 # ===========================
