@@ -2,8 +2,11 @@ from fastapi import APIRouter, HTTPException, status
 from schemas.prestador import PrestadorCreate, PrestadorOut
 from core.database import get_connection
 from core.security import get_password_hash, verify_password, create_access_token
+from fastapi import Body
+from schemas.auth import LoginRequest
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
 
 # REGISTER
 @router.post("/register", response_model=PrestadorOut)
@@ -34,18 +37,17 @@ def register(prestador: PrestadorCreate):
 
     return PrestadorOut(id=user_id, nombre=prestador.nombre, apellido=prestador.apellido, direccion=prestador.direccion, email=prestador.email, telefono=prestador.telefono, id_zona=id_zona)
 
-# LOGIN
 @router.post("/login")
-def login(email: str, password: str):
+def login(credentials: LoginRequest = Body(...)):
     with get_connection() as (cursor, conn):
 
-        cursor.execute("SELECT * FROM prestador WHERE email = %s", (email,))
+        cursor.execute("SELECT * FROM prestador WHERE email = %s", (credentials.email,))
         user = cursor.fetchone()
 
         cursor.close()
         conn.close()
 
-        if not user or not verify_password(password, user["password"]):
+        if not user or not verify_password(credentials.password, user["password"]):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
 
         access_token = create_access_token({"sub": str(user["id"])})
