@@ -2,8 +2,8 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from mysql.connector import Error
-from api.core.database import get_connection
-from api.schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
+from core.database import get_connection
+from schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
 
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
 
