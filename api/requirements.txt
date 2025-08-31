@@ -2,5 +2,7 @@ prometheus_fastapi_instrumentator
 python-dotenv
 fastapi
 uvicorn[standard]
-pymongo
 mysql-connector-python
+python_jose==3.5.0
+python-dotenv==1.1.1
+passlib==1.7.4
