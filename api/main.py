@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
-from api.core.database import get_connection
-from api.routes import prestadores, auth
+from core.database import get_connection
+from routes import prestadores, auth
 
 # ===========================
 # Configuración de FastAPI
