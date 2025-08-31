@@ -18,12 +18,11 @@ def register(prestador: PrestadorCreate):
         hashed_pw = get_password_hash(prestador.password)
 
         # hacer que antes vaya a buscar las zonas registradas para obtener el id_zona en vez de direccion?
-        cursor.execute("SELECT id FROM zona WHERE nombre = %s", (prestador.direccion,))
+        cursor.execute("SELECT id FROM zona WHERE id = %s", (prestador.id_zona,))
         zona = cursor.fetchone()
         if not zona:
-            raise HTTPException(status_code=400, detail="Zona no encontrada")
+            raise HTTPException(status_code=400, detail="id_zona inexistente")
         id_zona = zona["id"]
-        print(zona, id_zona)
 
         cursor.execute(
             "INSERT INTO prestador (nombre, apellido, direccion, id_zona, email, password, telefono) VALUES (%s, %s, %s, %s, %s, %s, %s)",
@@ -34,7 +33,6 @@ def register(prestador: PrestadorCreate):
         user_id = cursor.lastrowid
 
     return PrestadorOut(id=user_id, nombre=prestador.nombre, apellido=prestador.apellido, direccion=prestador.direccion, email=prestador.email, telefono=prestador.telefono, id_zona=id_zona)
-
 
 # LOGIN
 @router.post("/login")

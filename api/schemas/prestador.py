@@ -4,8 +4,6 @@ from typing import Optional
 from .usuario import UsuarioBase, UsuarioOut
 
 class PrestadorBase(UsuarioBase):
-    email: str
-    telefono: Optional[str] = None
     id_zona: Optional[int] = None
 
 class PrestadorCreate(PrestadorBase):

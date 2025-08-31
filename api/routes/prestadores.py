@@ -8,19 +8,21 @@ from api.schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
 
 # Listar todos con filtros opcionales
-@router.get("/", response_model=List[PrestadorOut])
+@router.get("/", response_model=List[PrestadorOut],
+            summary="Listar prestadores",
+            description="Obtiene una lista de prestadores filtrando opcionalmente por nombre, apellido, email, teléfono, dirección o zona.")
 def list_prestadores(
     nombre: Optional[str] = None,
     apellido: Optional[str] = None,
     email: Optional[str] = None,
     telefono: Optional[str] = None,
     direccion: Optional[str] = None,
-    id_zona: Optional[int] = None,
+    id_zona: Optional[int] = None
 ):
     try:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        query = "SELECT * FROM prestadores WHERE 1=1"
+        query = "SELECT * FROM prestadores where 1 = 1"
         params = []
 
         if nombre:
