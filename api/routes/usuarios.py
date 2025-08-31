@@ -2,8 +2,8 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 from mysql.connector import Error
-from ..core.database import get_connection
-from ..schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioOut
+from core.database import get_connection
+from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioOut
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
