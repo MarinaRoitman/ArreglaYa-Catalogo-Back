@@ -6,3 +6,4 @@ pymongo
 mysql-connector-python
 sqlalchemy
 python-jose
+passlib
