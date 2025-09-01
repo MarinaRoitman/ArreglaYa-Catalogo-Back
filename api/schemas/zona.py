@@ -12,3 +12,4 @@ class ZonaUpdate(BaseModel):
 
 class ZonaOut(ZonaBase):
     id: int
+    nombre: str

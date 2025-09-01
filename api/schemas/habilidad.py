@@ -5,6 +5,7 @@ from typing import Optional
 class HabilidadBase(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
+    id_rubro: int
 
 class HabilidadCreate(HabilidadBase):
     pass
@@ -12,6 +13,7 @@ class HabilidadCreate(HabilidadBase):
 class HabilidadUpdate(BaseModel):
     nombre: Optional[str] = None
     descripcion: Optional[str] = None
+    id_rubro: Optional[int] = None
 
 class HabilidadOut(HabilidadBase):
     id: int
