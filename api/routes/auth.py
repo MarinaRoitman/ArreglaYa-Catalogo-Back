@@ -13,7 +13,6 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/register", response_model=PrestadorOut)
 def register(prestador: PrestadorCreate):
     with get_connection() as (cursor, conn):
-        cursor = conn.cursor(dictionary=True)
         # verificar si ya existe el email
         cursor.execute("SELECT * FROM prestador WHERE email = %s", (prestador.email,))
         if cursor.fetchone():

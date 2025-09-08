@@ -49,7 +49,7 @@ def list_pedidos(
 ):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             query = "SELECT * FROM pedido WHERE 1=1"
             params = []
             if id_usuario:
@@ -71,7 +71,7 @@ def list_pedidos(
 def get_pedido(pedido_id: int, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("SELECT * FROM pedido WHERE id = %s", (pedido_id,))
             pedido = cursor.fetchone()
             if not pedido:
@@ -85,7 +85,7 @@ def get_pedido(pedido_id: int, current_user: dict = Depends(get_current_user)):
 def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             fields = []
             values = []
             for key, value in pedido.dict(exclude_unset=True).items():

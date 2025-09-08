@@ -25,7 +25,7 @@ def list_prestadores(
 ):
     try:        
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             query = "SELECT * FROM prestador WHERE 1 = 1"
             params = []
 
@@ -84,7 +84,7 @@ def list_prestadores(
 def get_prestador(prestador_id: int, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
             result = cursor.fetchone()
             if not result:
@@ -122,7 +122,7 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este recurso")
         
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             fields = []
             values = []
 
@@ -212,7 +212,7 @@ def get_prestadores_by_zona(
 ):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("""
                 SELECT p.*
                 FROM prestador p
@@ -280,7 +280,7 @@ def get_prestadores_by_habilidad(
 ):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("""
                 SELECT p.*
                 FROM prestador p
@@ -315,7 +315,7 @@ def get_prestadores_by_habilidad(
 # def create_prestador(prestador: PrestadorCreate):
 #     try:
 #         conn = get_connection()
-#         cursor = conn.cursor(dictionary=True)
+#         
 #         query = """INSERT INTO prestadores 
 #                    (nombre, apellido, email, telefono, direccion, id_zona) 
 #                    VALUES (%s, %s, %s, %s, %s, %s)"""

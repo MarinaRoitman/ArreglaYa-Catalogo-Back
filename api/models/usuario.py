@@ -1,8 +1,8 @@
 # models/usuario.py
 class Usuario:
-    def __init__(self, id, nombre, apellido, direccion, email):
+    def __init__(self, id, nombre, apellido, direccion, dni):
         self.id = id
         self.nombre = nombre
         self.apellido = apellido
         self.direccion = direccion
-        self.email = email
+        self.dni = dni
