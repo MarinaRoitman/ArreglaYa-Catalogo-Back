@@ -12,7 +12,7 @@ router = APIRouter(prefix="/notificaciones", tags=["Notificaciones"])
 def list_notificaciones(current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("SELECT * FROM notificacion")
             notificaciones = cursor.fetchall()
             return notificaciones
@@ -24,7 +24,7 @@ def list_notificaciones(current_user: dict = Depends(get_current_user)):
 def get_notificacion(notificacion_id: int, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("SELECT * FROM notificacion WHERE id = %s", (notificacion_id,))
             result = cursor.fetchone()
             if not result:
@@ -38,7 +38,7 @@ def get_notificacion(notificacion_id: int, current_user: dict = Depends(get_curr
 def create_notificacion(notificacion: NotificacionCreate, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             query = """
                 INSERT INTO notificacion (titulo, mensaje, visible, id_pedido, fecha)
                 VALUES (%s, %s, %s, %s, NOW())
@@ -63,7 +63,7 @@ def create_notificacion(notificacion: NotificacionCreate, current_user: dict = D
 def update_notificacion(notificacion_id: int, notificacion: NotificacionUpdate, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             fields = []
             values = []
             for key, value in notificacion.dict(exclude_unset=True).items():

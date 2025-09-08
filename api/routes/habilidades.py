@@ -11,7 +11,6 @@ router = APIRouter(prefix="/habilidades", tags=["Habilidades"])
 def create_habilidad(habilidad: HabilidadCreate):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
             cursor.execute(
                 "INSERT INTO habilidad (nombre, descripcion, id_rubro) VALUES (%s, %s, %s)",
                 (habilidad.nombre, habilidad.descripcion, habilidad.id_rubro)
@@ -33,7 +32,6 @@ def create_habilidad(habilidad: HabilidadCreate):
 def list_habilidades(nombre: str = None, id_rubro: int = None):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
             query = "SELECT id, nombre, descripcion, id_rubro FROM habilidad WHERE 1=1"
             params = []
             if nombre:
@@ -54,8 +52,6 @@ def list_habilidades(nombre: str = None, id_rubro: int = None):
 def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
-
             # Construir SET dinámico
             fields = []
             values = []

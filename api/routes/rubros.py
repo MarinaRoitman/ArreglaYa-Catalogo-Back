@@ -11,7 +11,7 @@ router = APIRouter(prefix="/rubros", tags=["Rubros"])
 def create_rubro(rubro: RubroCreate):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("INSERT INTO rubro (nombre) VALUES (%s)", (rubro.nombre,))
             conn.commit()
             new_id = cursor.lastrowid
@@ -24,7 +24,7 @@ def create_rubro(rubro: RubroCreate):
 def list_rubros(nombre: str = None):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             query = "SELECT id, nombre FROM rubro WHERE 1=1"
             params = []
             if nombre:
@@ -39,7 +39,7 @@ def list_rubros(nombre: str = None):
 def get_rubro(rubro_id: int):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("SELECT id, nombre FROM rubro WHERE id = %s", (rubro_id,))
             rubro = cursor.fetchone()
             if not rubro:
@@ -53,7 +53,7 @@ def get_rubro(rubro_id: int):
 def update_rubro(rubro_id: int, rubro: RubroUpdate):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             fields = []
             values = []
             if rubro.nombre is not None:

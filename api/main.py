@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
 from core.database import get_connection
-from routes import auth, prestadores, zonas, habilidades, rubros, pedidos, notificaciones
+from routes import auth, prestadores, zonas, habilidades, rubros, pedidos, notificaciones,calificaciones, usuarios
 from fastapi.middleware.cors import CORSMiddleware 
 
 # ===========================
@@ -21,6 +21,8 @@ app.include_router(habilidades.router)
 app.include_router(rubros.router)
 app.include_router(pedidos.router)
 app.include_router(notificaciones.router)
+app.include_router(calificaciones.router)
+app.include_router(usuarios.router)
 
 #CORS
 app.add_middleware(

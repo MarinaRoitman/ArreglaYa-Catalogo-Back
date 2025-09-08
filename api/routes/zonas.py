@@ -11,7 +11,7 @@ router = APIRouter(prefix="/zonas", tags=["Zonas"])
 def create_zona(zona: ZonaCreate):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("INSERT INTO zona (nombre) VALUES (%s)", (zona.nombre,))
             conn.commit()
             new_id = cursor.lastrowid
@@ -23,7 +23,7 @@ def create_zona(zona: ZonaCreate):
 def list_zonas(nombre: str = None):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             query = "SELECT id, nombre FROM zona WHERE 1=1"
             params = []
             if nombre:
@@ -38,7 +38,7 @@ def list_zonas(nombre: str = None):
 def get_zona(zona_id: int):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             cursor.execute("SELECT id, nombre FROM zona WHERE id = %s", (zona_id,))
             zona = cursor.fetchone()
             if not zona:
@@ -51,7 +51,7 @@ def get_zona(zona_id: int):
 def update_zona(zona_id: int, zona: ZonaUpdate):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor(dictionary=True)
+            
             fields = []
             values = []
             if zona.nombre is not None:
