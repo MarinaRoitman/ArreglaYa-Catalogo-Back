@@ -4,7 +4,7 @@ from typing import Optional
 from .usuario import UsuarioBase, UsuarioOut
 
 class PrestadorBase(UsuarioBase):
-    id_zona: Optional[int] = None
+    dni: Optional[str] = None
 
 class PrestadorCreate(PrestadorBase):
     pass
@@ -15,7 +15,7 @@ class PrestadorUpdate(BaseModel):
     direccion: Optional[str] = None
     email: Optional[str] = None
     telefono: Optional[str] = None
-    id_zona: Optional[int] = None
+    activo: Optional[bool] = None
 
 class PrestadorOut(BaseModel):
     id: int
@@ -24,4 +24,7 @@ class PrestadorOut(BaseModel):
     direccion: Optional[str] = None
     email: str
     telefono: Optional[str] = None
-    id_zona: Optional[int] = None
+    dni: Optional[str] = None
+    activo: bool
+    habilidades: Optional[list] = None
+    zonas: Optional[list] = None

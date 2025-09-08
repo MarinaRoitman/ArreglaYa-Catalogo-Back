@@ -29,14 +29,14 @@ def register(prestador: PrestadorCreate):
         id_zona = zona["id"]
 
         cursor.execute(
-            "INSERT INTO prestador (nombre, apellido, direccion, id_zona, email, password, telefono) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (prestador.nombre, prestador.apellido, prestador.direccion, id_zona, prestador.email, hashed_pw, prestador.telefono)
+            "INSERT INTO prestador (nombre, apellido, direccion, id_zona, email, password, telefono, dni) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (prestador.nombre, prestador.apellido, prestador.direccion, id_zona, prestador.email, hashed_pw, prestador.telefono, prestador.dni)
         )
         conn.commit()
 
         user_id = cursor.lastrowid
 
-    return PrestadorOut(id=user_id, nombre=prestador.nombre, apellido=prestador.apellido, direccion=prestador.direccion, email=prestador.email, telefono=prestador.telefono, id_zona=id_zona)
+    return PrestadorOut(id=user_id, nombre=prestador.nombre, apellido=prestador.apellido, direccion=prestador.direccion, email=prestador.email, telefono=prestador.telefono, id_zona=id_zona, dni=prestador.dni, activo=True)
 
 @router.post("/login")
 def login(credentials: LoginRequest = Body(...)):

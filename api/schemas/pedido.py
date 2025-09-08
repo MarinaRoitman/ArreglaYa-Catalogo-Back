@@ -1,4 +1,3 @@
-# schemas/pedido.py
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -12,10 +11,11 @@ class EstadoPedido(str, Enum):
     cancelado = "cancelado"
 
 class PedidoBase(BaseModel):
-    estado: EstadoPedido
+    estado: EstadoPedido = EstadoPedido.pendiente
     tarifa: Optional[float] = None
-    id_prestador: int
+    descripcion: Optional[str] = None
     id_usuario: int
+    id_prestador: Optional[int] = None
 
 class PedidoCreate(PedidoBase):
     pass
@@ -23,6 +23,7 @@ class PedidoCreate(PedidoBase):
 class PedidoUpdate(BaseModel):
     estado: Optional[EstadoPedido] = None
     tarifa: Optional[float] = None
+    id_prestador: Optional[int] = None
 
 class PedidoOut(PedidoBase):
     id: int

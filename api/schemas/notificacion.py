@@ -20,3 +20,4 @@ class NotificacionUpdate(BaseModel):
 class NotificacionOut(NotificacionBase):
     id: int
     fecha: datetime
+    id_pedido: Optional[int] = None
