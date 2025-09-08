@@ -4,6 +4,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import os
+from fastapi import Depends, HTTPException, status
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
@@ -40,3 +41,11 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         return {"id": user_id, "role": role}
     except JWTError:
         raise credentials_exception
+
+def require_prestador_role(current_user: dict = Depends(get_current_user)):
+    if current_user.get("rol") != "prestador":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para acceder a este recurso"
+        )
+    return current_user
