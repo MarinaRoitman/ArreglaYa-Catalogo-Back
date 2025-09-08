@@ -15,13 +15,14 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current
         with get_connection() as (cursor, conn):
             # INSERT
             query = """
-                INSERT INTO pedido (estado, descripcion, tarifa, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario)
-                VALUES (%s, %s, %s, NOW(), NOW(), %s, %s)
+                INSERT INTO pedido (estado, descripcion, tarifa, fecha, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario)
+                VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, %s)
             """
             values = (
                 pedido.estado,
                 pedido.descripcion,
                 pedido.tarifa,
+                pedido.fecha,  # <-- Nuevo campo
                 pedido.id_prestador,
                 pedido.id_usuario
             )
@@ -85,14 +86,11 @@ def get_pedido(pedido_id: int, current_user: dict = Depends(get_current_user)):
 def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            
             fields = []
             values = []
             for key, value in pedido.dict(exclude_unset=True).items():
-                if key != "fecha_ultima_actualizacion":
-                    fields.append(f"{key}=%s")
-                    values.append(value)
-            # Actualiza la fecha de última actualización siempre
+                fields.append(f"{key}=%s")
+                values.append(value)
             fields.append("fecha_ultima_actualizacion=NOW()")
             values.append(pedido_id)
             if not fields:

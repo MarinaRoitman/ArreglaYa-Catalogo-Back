@@ -25,7 +25,6 @@ def list_prestadores(
 ):
     try:        
         with get_connection() as (cursor, conn):
-            
             query = "SELECT * FROM prestador WHERE 1 = 1"
             params = []
 
@@ -57,7 +56,7 @@ def list_prestadores(
             cursor.execute(query, tuple(params))
             prestadores = cursor.fetchall()
 
-            # Para cada prestador, obtener sus zonas y habilidades
+            # Para cada prestador, obtener sus zonas y habilidades (con nombre de rubro)
             for prestador in prestadores:
                 # Zonas
                 cursor.execute("""
@@ -67,11 +66,12 @@ def list_prestadores(
                     WHERE pz.id_prestador = %s
                 """, (prestador["id"],))
                 prestador["zonas"] = cursor.fetchall()
-                # Habilidades
+                # Habilidades con nombre de rubro
                 cursor.execute("""
-                    SELECT h.id, h.nombre, h.descripcion, h.id_rubro
+                    SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
                     FROM habilidad h
                     INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                    INNER JOIN rubro r ON h.id_rubro = r.id
                     WHERE ph.id_prestador = %s
                 """, (prestador["id"],))
                 prestador["habilidades"] = cursor.fetchall()
@@ -84,7 +84,6 @@ def list_prestadores(
 def get_prestador(prestador_id: int, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            
             cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
             result = cursor.fetchone()
             if not result:
@@ -100,11 +99,12 @@ def get_prestador(prestador_id: int, current_user: dict = Depends(get_current_us
             zonas = cursor.fetchall()
             result["zonas"] = zonas
             
-            # Obtener habilidades del prestador
+            # Obtener habilidades del prestador con nombre de rubro
             cursor.execute("""
-                SELECT h.id, h.nombre, h.descripcion, h.id_rubro
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
                 FROM habilidad h
                 INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
                 WHERE ph.id_prestador = %s
             """, (prestador_id,))
             habilidades = cursor.fetchall()
@@ -212,7 +212,6 @@ def get_prestadores_by_zona(
 ):
     try:
         with get_connection() as (cursor, conn):
-            
             cursor.execute("""
                 SELECT p.*
                 FROM prestador p
@@ -220,8 +219,9 @@ def get_prestadores_by_zona(
                 WHERE pz.id_zona = %s
             """, (id_zona,))
             prestadores = cursor.fetchall()
-            # Para cada prestador, obtener sus zonas
+            # Para cada prestador, obtener sus zonas y habilidades (con nombre de rubro)
             for prestador in prestadores:
+                # Zonas
                 cursor.execute("""
                     SELECT z.id, z.nombre
                     FROM zona z
@@ -229,6 +229,15 @@ def get_prestadores_by_zona(
                     WHERE pz.id_prestador = %s
                 """, (prestador["id"],))
                 prestador["zonas"] = cursor.fetchall()
+                # Habilidades con nombre de rubro
+                cursor.execute("""
+                    SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                    FROM habilidad h
+                    INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                    INNER JOIN rubro r ON h.id_rubro = r.id
+                    WHERE ph.id_prestador = %s
+                """, (prestador["id"],))
+                prestador["habilidades"] = cursor.fetchall()
             return prestadores
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -280,7 +289,6 @@ def get_prestadores_by_habilidad(
 ):
     try:
         with get_connection() as (cursor, conn):
-            
             cursor.execute("""
                 SELECT p.*
                 FROM prestador p
@@ -288,7 +296,7 @@ def get_prestadores_by_habilidad(
                 WHERE ph.id_habilidad = %s
             """, (id_habilidad,))
             prestadores = cursor.fetchall()
-            # Para cada prestador, obtener sus zonas y habilidades
+            # Para cada prestador, obtener sus zonas y habilidades (con nombre de rubro)
             for prestador in prestadores:
                 # Zonas
                 cursor.execute("""
@@ -298,11 +306,12 @@ def get_prestadores_by_habilidad(
                     WHERE pz.id_prestador = %s
                 """, (prestador["id"],))
                 prestador["zonas"] = cursor.fetchall()
-                # Habilidades
+                # Habilidades con nombre de rubro
                 cursor.execute("""
-                    SELECT h.id, h.nombre, h.descripcion, h.id_rubro
+                    SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
                     FROM habilidad h
                     INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                    INNER JOIN rubro r ON h.id_rubro = r.id
                     WHERE ph.id_prestador = %s
                 """, (prestador["id"],))
                 prestador["habilidades"] = cursor.fetchall()
