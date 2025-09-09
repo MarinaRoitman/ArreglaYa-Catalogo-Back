@@ -4,10 +4,11 @@ from typing import Optional
 from .usuario import UsuarioBase, UsuarioOut
 
 class PrestadorBase(UsuarioBase):
-    dni: Optional[str] = None
+    email: Optional[str] = None
+    telefono: Optional[str] = None
 
 class PrestadorCreate(PrestadorBase):
-    pass
+    password: str
 
 class PrestadorUpdate(BaseModel):
     nombre: Optional[str] = None
