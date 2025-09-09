@@ -22,7 +22,7 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current
                 pedido.estado,
                 pedido.descripcion,
                 pedido.tarifa,
-                pedido.fecha,  # <-- Nuevo campo
+                pedido.fecha,
                 pedido.id_prestador,
                 pedido.id_usuario
             )

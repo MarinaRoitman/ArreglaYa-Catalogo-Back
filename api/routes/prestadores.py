@@ -155,12 +155,12 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(get_current
             raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este recurso")
         
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM prestador WHERE id=%s", (prestador_id,))
+            # Baja lógica: actualizar campo activo a False
+            cursor.execute("UPDATE prestador SET activo = %s WHERE id=%s", (False, prestador_id))
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Prestador no encontrado")
-            return {"detail": f"Prestador {prestador_id} eliminado correctamente"}
+            return {"detail": f"Prestador {prestador_id} dado de baja correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
     
