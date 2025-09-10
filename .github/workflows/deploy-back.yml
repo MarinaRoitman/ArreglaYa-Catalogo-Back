@@ -13,15 +13,11 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: desarrollo2-catalogos-back
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # === NUEVO: gate de tests ===
+      # === Tests gate ===
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -43,11 +39,10 @@ jobs:
 
       - name: Run unit tests
         run: pytest -q
-      # === fin gate de tests ===
+      # === fin tests gate ===
 
       - name: Debug secrets (masked)
         shell: bash
-        working-directory: .
         run: |
           set -e
           echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
