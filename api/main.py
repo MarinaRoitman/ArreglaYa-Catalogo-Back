@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Configuración de FastAPI
 # ===========================
 app = FastAPI(
-    title="API de prueba superprueba",
+    title="API Desarrollo 2",
     description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
     version="1.0.0"
 )
@@ -25,9 +25,15 @@ app.include_router(calificaciones.router)
 app.include_router(usuarios.router)
 
 #CORS
+
+FRONT_PROD = "https://desarrollo2-catalogos.online"
+LOCAL_3000 = "http://localhost:3000" 
+
+ALLOWED_ORIGINS = [FRONT_PROD, LOCAL_3000]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

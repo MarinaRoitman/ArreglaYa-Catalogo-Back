@@ -13,17 +13,36 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: desarrollo2-catalogos-back
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # === Tests gate ===
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install deps (prod + test)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r api/requirements.txt
+          pip install -r api/requirements_test.txt
+
+      - name: Run unit tests
+        run: pytest -q
+      # === fin tests gate ===
+
       - name: Debug secrets (masked)
         shell: bash
-        working-directory: .
         run: |
           set -e
           echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
