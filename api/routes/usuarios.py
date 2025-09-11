@@ -7,7 +7,6 @@ from core.security import get_current_user
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
-
 # Listar todos con filtros opcionales (requiere JWT)
 @router.get("/", response_model=List[UsuarioOut])
 def list_usuarios(
@@ -15,11 +14,12 @@ def list_usuarios(
     apellido: Optional[str] = None,
     dni: Optional[str] = None,
     direccion: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)  
+    telefono: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
 ):
     try:
         with get_connection() as (cursor, conn):
-            query = "SELECT id, nombre, apellido, direccion, dni FROM usuario WHERE 1=1"
+            query = "SELECT id, nombre, apellido, direccion, dni, telefono, activo FROM usuario WHERE 1=1"
             params = []
 
             if nombre:
@@ -34,12 +34,14 @@ def list_usuarios(
             if direccion:
                 query += " AND direccion LIKE %s"
                 params.append(f"%{direccion}%")
+            if telefono:
+                query += " AND telefono LIKE %s"
+                params.append(f"%{telefono}%")
 
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # Crear un usuario (registro público → no requiere JWT)
 @router.post("/", response_model=UsuarioOut)
@@ -47,9 +49,9 @@ def create_usuario(usuario: UsuarioCreate):
     try:
         with get_connection() as (cursor, conn):
             query = """INSERT INTO usuario
-                       (nombre, apellido, direccion, dni) 
-                       VALUES (%s, %s, %s, %s)"""
-            values = (usuario.nombre, usuario.apellido, usuario.direccion, usuario.dni)
+                       (nombre, apellido, direccion, dni, telefono)
+                       VALUES (%s, %s, %s, %s, %s)"""
+            values = (usuario.nombre, usuario.apellido, usuario.direccion, usuario.dni, usuario.telefono)
             cursor.execute(query, values)
             conn.commit()
             new_id = cursor.lastrowid
@@ -57,10 +59,8 @@ def create_usuario(usuario: UsuarioCreate):
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# Obtener un usuario por ID (puede ser público o privado → acá lo dejo público)
 @router.get("/{usuario_id}", response_model=UsuarioOut)
-def get_usuario(usuario_id: int):
+def get_usuario(usuario_id: int, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("SELECT * FROM usuario WHERE id = %s", (usuario_id,))
@@ -76,9 +76,6 @@ def get_usuario(usuario_id: int):
 @router.patch("/{usuario_id}", response_model=UsuarioOut)
 def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict = Depends(get_current_user)):  # 🔒
     try:
-        # Se podría validar acá que `current_user["id"] == usuario_id` o que sea admin
-        if current_user["id"] != usuario_id:
-            raise HTTPException(status_code=403, detail="No tienes permiso para actualizar este usuario")
         with get_connection() as (cursor, conn):
             fields = []
             values = []
@@ -109,14 +106,11 @@ def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict =
 @router.delete("/{usuario_id}")
 def delete_usuario(usuario_id: int, current_user: dict = Depends(get_current_user)):  
     try:
-        # Se valida que el usuario solo pueda borrarse a sí mismo. (validar que sea admin?)
-        if current_user["id"] != usuario_id:
-            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este usuario")
         with get_connection() as (cursor, conn):
-            cursor.execute("DELETE FROM usuario WHERE id=%s", (usuario_id,))
+            cursor.execute("UPDATE usuario SET activo = %s WHERE id=%s", (False, usuario_id))
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Usuario no encontrado")
-            return {"detail": f"Usuario {usuario_id} eliminado correctamente"}
+            return {"detail": f"Usuario {usuario_id} dado de baja correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))

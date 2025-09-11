@@ -5,16 +5,14 @@ from core.security import get_password_hash, verify_password, create_access_toke
 from fastapi import Body, Depends
 from schemas.auth import LoginRequest
 
-
 router = APIRouter(prefix="/auth", tags=["Auth"])
-
 
 # REGISTER
 @router.post("/register", response_model=PrestadorOut)
 def register(prestador: PrestadorCreate):
     with get_connection() as (cursor, conn):
         # verificar si ya existe el email
-        cursor.execute("SELECT * FROM prestador WHERE email = %s", (prestador.email,))
+        cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (prestador.email,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Email ya registrado")
 
@@ -34,7 +32,7 @@ def register(prestador: PrestadorCreate):
 def login(credentials: LoginRequest = Body(...)):
     with get_connection() as (cursor, conn):
 
-        cursor.execute("SELECT * FROM prestador WHERE email = %s", (credentials.email,))
+        cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (credentials.email,))
         user = cursor.fetchone()
 
         cursor.close()
