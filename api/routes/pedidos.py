@@ -15,8 +15,8 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current
         with get_connection() as (cursor, conn):
             # INSERT
             query = """
-                INSERT INTO pedido (estado, descripcion, tarifa, fecha, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario)
-                VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, %s)
+                INSERT INTO pedido (estado, descripcion, tarifa, fecha, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario, id_habilidad)
+                VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, %s, %s)
             """
             values = (
                 pedido.estado,
@@ -24,7 +24,8 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current
                 pedido.tarifa,
                 pedido.fecha,
                 pedido.id_prestador,
-                pedido.id_usuario
+                pedido.id_usuario,
+                pedido.id_habilidad
             )
             cursor.execute(query, values)
             conn.commit()
@@ -46,6 +47,7 @@ def list_pedidos(
     id_usuario: Optional[int] = None,
     id_prestador: Optional[int] = None,
     estado: Optional[str] = None,
+    id_habilidad: Optional[int] = None,
     current_user: dict = Depends(get_current_user)
 ):
     try:
@@ -62,6 +64,9 @@ def list_pedidos(
             if estado:
                 query += " AND estado = %s"
                 params.append(estado)
+            if id_habilidad:
+                query += " AND id_habilidad = %s"
+                params.append(id_habilidad)
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
     except Error as e:
@@ -106,15 +111,17 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
         raise HTTPException(status_code=500, detail=str(e))
 
 # Eliminar pedido
-@router.delete("/{pedido_id}", summary="Eliminar pedido")
+@router.delete("/{pedido_id}", summary="Cancelar pedido")
 def delete_pedido(pedido_id: int, current_user: dict = Depends(get_current_user)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM pedido WHERE id = %s", (pedido_id,))
+            cursor.execute(
+                "UPDATE pedido SET estado = %s, fecha_ultima_actualizacion = NOW() WHERE id = %s",
+                ("cancelado", pedido_id)
+            )
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Pedido no encontrado")
-            return {"detail": "Pedido eliminado correctamente"}
+            return {"detail": "Pedido cancelado correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
