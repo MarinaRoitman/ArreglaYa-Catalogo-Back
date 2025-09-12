@@ -17,6 +17,7 @@ class PedidoBase(BaseModel):
     id_usuario: int
     id_prestador: Optional[int] = None
     fecha: Optional[datetime] = None
+    id_habilidad: Optional[int] = None
 
 class PedidoCreate(PedidoBase):
     pass
@@ -26,9 +27,11 @@ class PedidoUpdate(BaseModel):
     tarifa: Optional[float] = None
     id_prestador: Optional[int] = None
     fecha: Optional[datetime] = None
+    id_habilidad: Optional[int] = None
 
 class PedidoOut(PedidoBase):
     id: int
     fecha_creacion: datetime
     fecha_ultima_actualizacion: datetime
     fecha: Optional[datetime] = None
+    
