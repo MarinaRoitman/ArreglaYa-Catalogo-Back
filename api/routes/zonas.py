@@ -3,7 +3,7 @@ from typing import List
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.zona import ZonaCreate, ZonaUpdate, ZonaOut
-from core.security import get_current_user
+from core.security import get_current_user, get_current_user_swagger
 
 router = APIRouter(prefix="/zonas", tags=["Zonas"])
 

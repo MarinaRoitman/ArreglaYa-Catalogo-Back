@@ -3,14 +3,14 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.pedido import PedidoCreate, PedidoUpdate, PedidoOut
-from core.security import get_current_user
+from core.security import get_current_user, get_current_user_swagger
 from core.security import require_prestador_role
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 # Crear pedido
 @router.post("/", response_model=PedidoOut, summary="Crear pedido")
-def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current_user)):
+def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             # INSERT
@@ -48,7 +48,7 @@ def list_pedidos(
     id_prestador: Optional[int] = None,
     estado: Optional[str] = None,
     id_habilidad: Optional[int] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_swagger)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -74,7 +74,7 @@ def list_pedidos(
 
 # Obtener pedido por ID
 @router.get("/{pedido_id}", response_model=PedidoOut, summary="Obtener pedido por ID")
-def get_pedido(pedido_id: int, current_user: dict = Depends(get_current_user)):
+def get_pedido(pedido_id: int, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -88,7 +88,7 @@ def get_pedido(pedido_id: int, current_user: dict = Depends(get_current_user)):
 
 # Modificar pedido
 @router.patch("/{pedido_id}", response_model=PedidoOut, summary="Modificar pedido")
-def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Depends(get_current_user)):
+def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             fields = []
@@ -112,7 +112,7 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
 
 # Eliminar pedido
 @router.delete("/{pedido_id}", summary="Cancelar pedido")
-def delete_pedido(pedido_id: int, current_user: dict = Depends(get_current_user)):
+def delete_pedido(pedido_id: int, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute(

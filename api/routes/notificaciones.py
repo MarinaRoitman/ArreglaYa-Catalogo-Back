@@ -3,13 +3,13 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.notificacion import NotificacionCreate, NotificacionUpdate, NotificacionOut
-from core.security import get_current_user
+from core.security import get_current_user, get_current_user_swagger
 
 router = APIRouter(prefix="/notificaciones", tags=["Notificaciones"])
 
 # Listar todas las notificaciones
 @router.get("/", response_model=List[NotificacionOut])
-def list_notificaciones(current_user: dict = Depends(get_current_user)):
+def list_notificaciones(current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -21,7 +21,7 @@ def list_notificaciones(current_user: dict = Depends(get_current_user)):
 
 # Obtener notificación por ID
 @router.get("/{notificacion_id}", response_model=NotificacionOut)
-def get_notificacion(notificacion_id: int, current_user: dict = Depends(get_current_user)):
+def get_notificacion(notificacion_id: int, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -35,7 +35,7 @@ def get_notificacion(notificacion_id: int, current_user: dict = Depends(get_curr
 
 # Crear notificación
 @router.post("/", response_model=NotificacionOut)
-def create_notificacion(notificacion: NotificacionCreate, current_user: dict = Depends(get_current_user)):
+def create_notificacion(notificacion: NotificacionCreate, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -60,7 +60,7 @@ def create_notificacion(notificacion: NotificacionCreate, current_user: dict = D
 
 # Modificar notificación
 @router.patch("/{notificacion_id}", response_model=NotificacionOut)
-def update_notificacion(notificacion_id: int, notificacion: NotificacionUpdate, current_user: dict = Depends(get_current_user)):
+def update_notificacion(notificacion_id: int, notificacion: NotificacionUpdate, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -85,7 +85,7 @@ def update_notificacion(notificacion_id: int, notificacion: NotificacionUpdate, 
 
 # Eliminar notificación
 @router.delete("/{notificacion_id}")
-def delete_notificacion(notificacion_id: int, current_user: dict = Depends(get_current_user)):
+def delete_notificacion(notificacion_id: int, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             cursor = conn.cursor()
