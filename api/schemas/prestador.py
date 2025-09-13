@@ -17,6 +17,7 @@ class PrestadorUpdate(BaseModel):
     email: Optional[str] = None
     telefono: Optional[str] = None
     activo: Optional[bool] = None
+    contrasena: Optional[str] = None
 
 class PrestadorOut(BaseModel):
     id: int

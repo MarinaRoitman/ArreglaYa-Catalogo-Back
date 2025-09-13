@@ -4,7 +4,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
-from core.security import get_current_user
+from core.security import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
 
@@ -122,11 +122,17 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este recurso")
         
         with get_connection() as (cursor, conn):
-            
             fields = []
             values = []
 
-            for key, value in prestador.dict(exclude_unset=True).items():
+            data = prestador.dict(exclude_unset=True)
+            
+            if "contrasena" in data and data["contrasena"]:
+                fields.append("password=%s")
+                values.append(get_password_hash(data["contrasena"]))
+                del data["contrasena"]
+
+            for key, value in data.items():
                 fields.append(f"{key}=%s")
                 values.append(value)
 
