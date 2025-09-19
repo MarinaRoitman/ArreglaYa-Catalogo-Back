@@ -6,3 +6,4 @@ mysql-connector-python
 sqlalchemy
 python-jose
 passlib
+pika
