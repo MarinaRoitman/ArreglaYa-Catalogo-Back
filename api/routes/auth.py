@@ -5,6 +5,7 @@ from core.database import get_connection
 from core.security import get_password_hash, verify_password, create_access_token
 from schemas.auth import LoginRequest
 from core.events import publish_event
+from core.rpc import rpc_login   # ← you forgot me
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -12,8 +13,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/register", response_model=PrestadorOut)
 def register(prestador: PrestadorCreate, background: BackgroundTasks):
     with get_connection() as (cursor, conn):
-        # verificar si ya existe el email
-        cursor.execute("SELECT * FROM prestador WHERE email = %s", (prestador.email,))
+        cursor.execute("SELECT 1 FROM prestador WHERE email = %s", (prestador.email,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Email ya registrado")
 
@@ -29,7 +29,7 @@ def register(prestador: PrestadorCreate, background: BackgroundTasks):
         conn.commit()
         user_id = cursor.lastrowid
 
-    # publicar evento en background (no bloquea la respuesta)
+    # publish event in background, so your API isn’t held hostage by the bus
     payload = {
         "id": user_id,
         "nombre": prestador.nombre,
@@ -53,27 +53,30 @@ def register(prestador: PrestadorCreate, background: BackgroundTasks):
 
 @router.post("/login")
 def login(credentials: LoginRequest = Body(...)):
-    # Modo conmutable por env: USERS_AUTH_MODE=rpc | local (default)
     import os
-    mode = os.getenv("USERS_AUTH_MODE", "local").lower().strip()
+    mode = os.getenv("USERS_AUTH_MODE", "local").strip().lower()
 
     if mode == "rpc":
-        # Requiere: from core.rpc import rpc_login
-        resp = rpc_login(credentials.email, credentials.password, timeout_sec=3.0)
+        resp = rpc_login(credentials.email, credentials.password, timeout_sec=4.0)
         if not resp.get("ok"):
-            msg = resp.get("error", "login failed")
-            code = status.HTTP_401_UNAUTHORIZED if "invalid" in msg.lower() else status.HTTP_503_SERVICE_UNAVAILABLE
-            raise HTTPException(status_code=code, detail=msg)
+            msg = resp.get("error", "login_failed")
+
+            # map errors to codes without psychic powers
+            if "invalid" in msg.lower():
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+            if "timeout" in msg.lower() or "amqp_error" in msg.lower():
+                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Auth service unavailable")
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=msg)
+
         return {"access_token": resp["token"], "token_type": "bearer"}
 
-    # ---- fallback local (tu implementación actual) ----
-    with get_connection() as (cursor, conn):
-        cursor.execute("SELECT * FROM prestador WHERE email = %s", (credentials.email,))
+    # Fallback: local DB auth
+    with get_connection() as (cursor, _conn):
+        cursor.execute("SELECT id, password FROM prestador WHERE email = %s", (credentials.email,))
         user = cursor.fetchone()
-        cursor.close(); conn.close()
 
-        if not user or not verify_password(credentials.password, user["password"]):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+    if not user or not verify_password(credentials.password, user["password"]):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
 
-        access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
-        return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
+    return {"access_token": access_token, "token_type": "bearer"}
