@@ -16,11 +16,9 @@ def register(prestador: PrestadorCreate):
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Email ya registrado")
 
-        hashed_pw = get_password_hash(prestador.password)
-
         cursor.execute(
             "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (prestador.nombre, prestador.apellido, prestador.direccion, prestador.email, hashed_pw, prestador.telefono, prestador.dni)
+            (prestador.nombre, prestador.apellido, prestador.direccion, prestador.email, prestador.password, prestador.telefono, prestador.dni)
         )
         conn.commit()
 
@@ -38,7 +36,7 @@ def login(credentials: LoginRequest = Body(...)):
         cursor.close()
         conn.close()
 
-        if not user or not verify_password(credentials.password, user["password"]):
+        if not user or credentials.password != user["password"]:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
 
         access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})

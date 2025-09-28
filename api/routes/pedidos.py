@@ -15,8 +15,8 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current
         with get_connection() as (cursor, conn):
             # INSERT
             query = """
-                INSERT INTO pedido (estado, descripcion, tarifa, fecha, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario, id_habilidad)
-                VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, %s, %s)
+                INSERT INTO pedido (estado, descripcion, tarifa, fecha, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario, id_habilidad, id_pedido)
+                VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, %s, %s, %s)
             """
             values = (
                 pedido.estado,
@@ -25,7 +25,8 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(get_current
                 pedido.fecha,
                 pedido.id_prestador,
                 pedido.id_usuario,
-                pedido.id_habilidad
+                pedido.id_habilidad,
+                pedido.id_pedido
             )
             cursor.execute(query, values)
             conn.commit()

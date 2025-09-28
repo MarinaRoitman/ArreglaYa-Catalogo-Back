@@ -63,24 +63,26 @@ def create_calificacion(calificacion: CalificacionCreate, current_user: dict = D
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-            query = """INSERT INTO calificacion (estrellas, descripcion, id_prestador, id_usuario)
-                       VALUES (%s, %s, %s, %s)"""
+            query = """INSERT INTO calificacion (estrellas, descripcion, id_prestador, id_usuario, id_calificacion)
+                       VALUES (%s, %s, %s, %s, %s)"""
             values = (
                 calificacion.estrellas,
                 calificacion.descripcion,
                 calificacion.id_prestador,
                 calificacion.id_usuario,
+                calificacion.id_calificacion
             )
             cursor.execute(query, values)
             conn.commit()
             new_id = cursor.lastrowid
             cursor.execute(
-                "SELECT id, estrellas, descripcion, id_prestador, id_usuario FROM calificacion WHERE id = %s",
+                "SELECT id, estrellas, descripcion, id_prestador, id_usuario, id_calificacion FROM calificacion WHERE id = %s",
                 (new_id,),
             )
             return cursor.fetchone()
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Actualizar una calificación
 @router.patch("/{calificacion_id}", response_model=CalificacionOut)
@@ -89,7 +91,6 @@ def update_calificacion(calificacion_id: int, calificacion: CalificacionUpdate, 
         with get_connection() as (cursor, conn):
             fields = []
             values = []
-            # Validar existencia de calificacion
             cursor.execute("SELECT id FROM calificacion WHERE id = %s", (calificacion_id,))
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail="Calificación no encontrada")
@@ -110,7 +111,7 @@ def update_calificacion(calificacion_id: int, calificacion: CalificacionUpdate, 
                 raise HTTPException(status_code=404, detail="Calificación no encontrada")
 
             cursor.execute(
-                "SELECT id, estrellas, descripcion, id_prestador, id_usuario FROM calificacion WHERE id=%s",
+                "SELECT id, estrellas, descripcion, id_prestador, id_usuario, id_calificacion FROM calificacion WHERE id=%s",
                 (calificacion_id,),
             )
             return cursor.fetchone()

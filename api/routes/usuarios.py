@@ -49,15 +49,23 @@ def create_usuario(usuario: UsuarioCreate):
     try:
         with get_connection() as (cursor, conn):
             query = """INSERT INTO usuario
-                       (nombre, apellido, direccion, dni, telefono)
-                       VALUES (%s, %s, %s, %s, %s)"""
-            values = (usuario.nombre, usuario.apellido, usuario.direccion, usuario.dni, usuario.telefono)
+                       (nombre, apellido, direccion, dni, telefono, id_usuario)
+                       VALUES (%s, %s, %s, %s, %s, %s)"""
+            values = (
+                usuario.nombre,
+                usuario.apellido,
+                usuario.direccion,
+                usuario.dni,
+                usuario.telefono,
+                usuario.id_usuario
+            )
             cursor.execute(query, values)
             conn.commit()
             new_id = cursor.lastrowid
             return { "id": new_id, **usuario.dict() }
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/{usuario_id}", response_model=UsuarioOut)
 def get_usuario(usuario_id: int, current_user: dict = Depends(get_current_user_swagger)):
@@ -74,7 +82,7 @@ def get_usuario(usuario_id: int, current_user: dict = Depends(get_current_user_s
 
 # Actualizar un usuario (requiere JWT)
 @router.patch("/{usuario_id}", response_model=UsuarioOut)
-def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict = Depends(get_current_user_swagger)):  # 🔒
+def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict = Depends(get_current_user_swagger)):
     try:
         with get_connection() as (cursor, conn):
             fields = []
@@ -100,7 +108,6 @@ def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict =
             return result
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # Eliminar un usuario (requiere JWT)
 @router.delete("/{usuario_id}")

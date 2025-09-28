@@ -129,7 +129,7 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             
             if "contrasena" in data and data["contrasena"]:
                 fields.append("password=%s")
-                values.append(get_password_hash(data["contrasena"]))
+                values.append(data["contrasena"])
                 del data["contrasena"]
 
             for key, value in data.items():
