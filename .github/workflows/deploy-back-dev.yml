@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # === Tests gate opcional ===
+      # === Tests gate (optional) ===
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -41,7 +41,7 @@ jobs:
 
       - name: Run unit tests
         run: pytest -q
-      # === fin tests gate ===
+      # === end tests gate ===
 
       - name: Debug secrets (masked)
         shell: bash
@@ -49,14 +49,21 @@ jobs:
           set -e
           echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
           echo "EC2_USER: ${{ secrets.EC2_USER }}"
-          if [ -z "${{ secrets.EC2_SSH_PASSWORD }}" ]; then
-            echo "ERROR: Missing secret EC2_SSH_PASSWORD" >&2
-            exit 1
-          fi
+          test -n "${{ secrets.EC2_SSH_PASSWORD }}" || { echo "ERROR: Missing secret EC2_SSH_PASSWORD" >&2; exit 1; }
           LEN=$(printf "%s" "${{ secrets.EC2_SSH_PASSWORD }}" | wc -c | tr -d ' ')
           HASH=$(printf "%s" "${{ secrets.EC2_SSH_PASSWORD }}" | sha256sum | cut -c1-12)
           echo "EC2_SSH_PASSWORD length: ${LEN}"
           echo "EC2_SSH_PASSWORD sha256 (first 12): ${HASH}"
+
+      - name: Ensure target dir (DEV)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          script: |
+            set -e
+            mkdir -p /home/ubuntu/catalogo/api-dev
 
       - name: Copy backend code to EC2 (DEV)
         uses: appleboy/scp-action@v0.1.7
@@ -71,7 +78,7 @@ jobs:
           rm: true
           timeout: 3m
 
-      - name: Rebuild + up api-dev
+      - name: Rebuild + up api-dev (single compose file)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -79,17 +86,13 @@ jobs:
           password: ${{ secrets.EC2_SSH_PASSWORD }}
           script: |
             set -e
-            # Build & up solo el servicio DEV usando el override
+            # Build and start api-dev using ONLY the main compose file
             sudo docker compose \
               -f /home/ubuntu/catalogo/docker-compose.yml \
-              -f /home/ubuntu/catalogo/docker-compose.dev.yml \
               build api-dev
             sudo docker compose \
               -f /home/ubuntu/catalogo/docker-compose.yml \
-              -f /home/ubuntu/catalogo/docker-compose.dev.yml \
               up -d api-dev
-            # Loguear el arranque
             sudo docker compose \
               -f /home/ubuntu/catalogo/docker-compose.yml \
-              -f /home/ubuntu/catalogo/docker-compose.dev.yml \
               logs --tail=50 api-dev
