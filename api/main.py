@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Configuración de FastAPI
 # ===========================
 app = FastAPI(
-    title="API Desarrollo 2",
+    title="API Desarrollo 2 DEV",
     description="Estas rutas solo son de prueba para comprobar el funcionamiento correcto de la base de datos y el CI/CD del repo backend de Github.",
     version="1.0.0"
 )
