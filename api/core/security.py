@@ -69,3 +69,19 @@ def require_prestador_role(current_user: dict = Depends(get_current_user_swagger
             detail="No tienes permisos para acceder a este recurso"
         )
     return current_user
+
+def require_admin_role(current_user: dict = Depends(get_current_user_swagger)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso permitido solo para administradores"
+        )
+    return current_user
+
+def require_admin_or_prestador_role(current_user: dict = Depends(get_current_user_swagger)):
+    if current_user.get("role") not in ["admin", "prestador"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso permitido solo para administradores o prestadores"
+        )
+    return current_user

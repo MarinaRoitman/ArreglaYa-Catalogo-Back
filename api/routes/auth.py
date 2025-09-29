@@ -29,15 +29,31 @@ def register(prestador: PrestadorCreate):
 @router.post("/login")
 def login(credentials: LoginRequest = Body(...)):
     with get_connection() as (cursor, conn):
-
+        # Buscar en prestador
         cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (credentials.email,))
         user = cursor.fetchone()
+
+        if user and credentials.password == user["password"]:
+            access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "rol": "prestador"
+            }
+
+        # Buscar en admin
+        cursor.execute("SELECT * FROM admin WHERE email = %s", (credentials.email,))
+        admin = cursor.fetchone()
 
         cursor.close()
         conn.close()
 
-        if not user or credentials.password != user["password"]:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+        if admin and credentials.password == admin["password"]:
+            access_token = create_access_token({"sub": str(admin["email"]), "role": "admin"})
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "rol": "admin"
+            }
 
-        access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
-        return {"access_token": access_token, "token_type": "bearer"}
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")

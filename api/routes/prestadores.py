@@ -4,7 +4,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
-from core.security import get_current_user, get_current_user_swagger, get_password_hash
+from core.security import require_admin_role, require_prestador_role, require_admin_or_prestador_role
 
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
 
@@ -21,7 +21,7 @@ def list_prestadores(
     id_zona: Optional[int] = None,
     dni: Optional[str] = None,
     activo: Optional[bool] = None,
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_role)
 ):
     try:        
         with get_connection() as (cursor, conn):
@@ -81,7 +81,7 @@ def list_prestadores(
 
 # Obtener un prestador por ID
 @router.get("/{prestador_id}", response_model=PrestadorOut)
-def get_prestador(prestador_id: int, current_user: dict = Depends(get_current_user_swagger)):
+def get_prestador(prestador_id: int, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
@@ -116,11 +116,8 @@ def get_prestador(prestador_id: int, current_user: dict = Depends(get_current_us
 
 # Actualizar un prestador
 @router.patch("/{prestador_id}", response_model=PrestadorOut)
-def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user: dict = Depends(get_current_user_swagger)):
-    try:
-        if current_user["role"] != "prestador":
-            raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este recurso")
-        
+def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user: dict = Depends(require_admin_or_prestador_role)):
+    try:        
         with get_connection() as (cursor, conn):
             fields = []
             values = []
@@ -155,11 +152,8 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
 
 # Eliminar un prestador
 @router.delete("/{prestador_id}")
-def delete_prestador(prestador_id: int, current_user: dict = Depends(get_current_user_swagger)):
+def delete_prestador(prestador_id: int, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:
-        if current_user["role"] != "prestador":
-            raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este recurso")
-        
         with get_connection() as (cursor, conn):
             # Baja lógica: actualizar campo activo a False
             cursor.execute("UPDATE prestador SET activo = %s WHERE id=%s", (False, prestador_id))
@@ -175,7 +169,7 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(get_current
 def add_zona_to_prestador(
     prestador_id: int,
     id_zona: int = Body(..., embed=True),
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_or_prestador_role)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -194,7 +188,7 @@ def add_zona_to_prestador(
 def remove_zona_from_prestador(
     prestador_id: int,
     id_zona: int = Body(..., embed=True),
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_or_prestador_role)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -214,7 +208,7 @@ def remove_zona_from_prestador(
 @router.get("/zona/{id_zona}", response_model=List[PrestadorOut], summary="Listar prestadores por zona")
 def get_prestadores_by_zona(
     id_zona: int,
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_role)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -253,7 +247,7 @@ def get_prestadores_by_zona(
 def add_habilidad_to_prestador(
     prestador_id: int,
     id_habilidad: int = Body(..., embed=True),
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_or_prestador_role)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -272,7 +266,7 @@ def add_habilidad_to_prestador(
 def remove_habilidad_from_prestador(
     prestador_id: int,
     id_habilidad: int = Body(..., embed=True),
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_or_prestador_role)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -291,7 +285,7 @@ def remove_habilidad_from_prestador(
 @router.get("/habilidad/{id_habilidad}", response_model=List[PrestadorOut], summary="Listar prestadores por habilidad")
 def get_prestadores_by_habilidad(
     id_habilidad: int,
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_role)
 ):
     try:
         with get_connection() as (cursor, conn):
