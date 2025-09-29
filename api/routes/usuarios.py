@@ -3,7 +3,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioOut
-from core.security import get_current_user, get_current_user_swagger
+from core.security import require_admin_role, require_admin_or_prestador_role
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
@@ -15,7 +15,7 @@ def list_usuarios(
     dni: Optional[str] = None,
     direccion: Optional[str] = None,
     telefono: Optional[str] = None,
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_role)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -45,7 +45,7 @@ def list_usuarios(
 
 # Crear un usuario (registro público → no requiere JWT)
 @router.post("/", response_model=UsuarioOut)
-def create_usuario(usuario: UsuarioCreate):
+def create_usuario(usuario: UsuarioCreate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             query = """INSERT INTO usuario
@@ -68,7 +68,7 @@ def create_usuario(usuario: UsuarioCreate):
 
 
 @router.get("/{usuario_id}", response_model=UsuarioOut)
-def get_usuario(usuario_id: int, current_user: dict = Depends(get_current_user_swagger)):
+def get_usuario(usuario_id: int, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("SELECT * FROM usuario WHERE id = %s", (usuario_id,))
@@ -82,7 +82,7 @@ def get_usuario(usuario_id: int, current_user: dict = Depends(get_current_user_s
 
 # Actualizar un usuario (requiere JWT)
 @router.patch("/{usuario_id}", response_model=UsuarioOut)
-def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict = Depends(get_current_user_swagger)):
+def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             fields = []
@@ -111,7 +111,7 @@ def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict =
 
 # Eliminar un usuario (requiere JWT)
 @router.delete("/{usuario_id}")
-def delete_usuario(usuario_id: int, current_user: dict = Depends(get_current_user_swagger)):  
+def delete_usuario(usuario_id: int, current_user: dict = Depends(require_admin_role)):  
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("UPDATE usuario SET activo = %s WHERE id=%s", (False, usuario_id))
