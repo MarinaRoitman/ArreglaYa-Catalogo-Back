@@ -145,7 +145,9 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             # validar que hayan datos que actualizar
             if not data:
                 raise HTTPException(status_code=400, detail="No se enviaron campos válidos para actualizar")
-
+            # validar que el teléfono sea numérico
+            if "telefono" in data and data["telefono"] and not data["telefono"].isdigit():
+                raise HTTPException(status_code=400, detail="El teléfono debe ser numérico")
             if "contrasena" in data and data["contrasena"]:
                 fields.append("password=%s")
                 values.append(data["contrasena"])
