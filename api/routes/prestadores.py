@@ -148,6 +148,8 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             # validar que el teléfono sea numérico
             if "telefono" in data and data["telefono"] and not data["telefono"].isdigit():
                 raise HTTPException(status_code=400, detail="El teléfono debe ser numérico")
+            if "dni" in data and data["dni"] and not data["dni"].isdigit():
+                raise HTTPException(status_code=400, detail="El dni debe ser numérico")
             if "contrasena" in data and data["contrasena"]:
                 fields.append("password=%s")
                 values.append(data["contrasena"])
