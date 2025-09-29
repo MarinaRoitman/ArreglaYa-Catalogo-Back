@@ -119,11 +119,33 @@ def get_prestador(prestador_id: int, current_user: dict = Depends(require_admin_
 def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:        
         with get_connection() as (cursor, conn):
+
+            # Validar que el prestador exista
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            existing = cursor.fetchone()
+            if not existing:
+                raise HTTPException(status_code=404, detail="Prestador no encontrado")
+            
+            # Validar email duplicado (si se envía)
+            if prestador.email:
+                cursor.execute("SELECT id FROM prestador WHERE email = %s AND id != %s", (prestador.email, prestador_id))
+                if cursor.fetchone():
+                    raise HTTPException(status_code=409, detail="Email ya registrado en otro prestador")
+            
+            # Validar dni duplicado (si se envía)
+            if prestador.dni:
+                cursor.execute("SELECT id FROM prestador WHERE dni = %s AND id != %s", (prestador.dni, prestador_id))
+                if cursor.fetchone():
+                    raise HTTPException(status_code=409, detail="DNI ya registrado en otro prestador")
+
             fields = []
             values = []
 
-            data = prestador.dict(exclude_unset=True)
-            
+            data = prestador.model_dump(exclude_unset=True)
+            # validar que hayan datos que actualizar
+            if not data:
+                raise HTTPException(status_code=400, detail="No se enviaron campos válidos para actualizar")
+
             if "contrasena" in data and data["contrasena"]:
                 fields.append("password=%s")
                 values.append(data["contrasena"])
