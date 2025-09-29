@@ -17,7 +17,7 @@ db_config = {
     "port": int(os.getenv("DB_PORT", 3306)),
     "user": os.getenv("MYSQL_USER"),
     "password": os.getenv("MYSQL_PASSWORD"),
-    "database": os.getenv("MYSQL_DATABASE", "catalogo-dev"),
+    "database": os.getenv("MYSQL_DATABASE", "catalogo"),
 }
 
 @contextlib.contextmanager
