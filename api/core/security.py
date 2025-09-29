@@ -15,6 +15,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
+# Deprecated: usar alguno de los require_..._role
 def get_current_user_swagger(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
     token = credentials.credentials
 
@@ -46,6 +47,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+# Deprecated
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

@@ -3,7 +3,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.calificacion import CalificacionCreate, CalificacionUpdate, CalificacionOut
-from core.security import get_current_user, get_current_user_swagger
+from core.security import  require_admin_role, require_admin_or_prestador_role
 
 router = APIRouter(prefix="/calificaciones", tags=["Calificaciones"])
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/calificaciones", tags=["Calificaciones"])
 def list_calificaciones(
     id_prestador: Optional[int] = None,
     id_usuario: Optional[int] = None,
-    current_user: dict = Depends(get_current_user_swagger)
+    current_user: dict = Depends(require_admin_or_prestador_role)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -33,7 +33,7 @@ def list_calificaciones(
 
 # Obtener una calificación por ID
 @router.get("/{calificacion_id}", response_model=CalificacionOut)
-def get_calificacion(calificacion_id: int, current_user: dict = Depends(get_current_user_swagger)):
+def get_calificacion(calificacion_id: int, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute(
@@ -50,7 +50,7 @@ def get_calificacion(calificacion_id: int, current_user: dict = Depends(get_curr
 
 # Crear una calificación
 @router.post("/", response_model=CalificacionOut)
-def create_calificacion(calificacion: CalificacionCreate, current_user: dict = Depends(get_current_user_swagger)):
+def create_calificacion(calificacion: CalificacionCreate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             # Validar existencia de prestador
@@ -86,7 +86,7 @@ def create_calificacion(calificacion: CalificacionCreate, current_user: dict = D
 
 # Actualizar una calificación
 @router.patch("/{calificacion_id}", response_model=CalificacionOut)
-def update_calificacion(calificacion_id: int, calificacion: CalificacionUpdate, current_user: dict = Depends(get_current_user_swagger)):
+def update_calificacion(calificacion_id: int, calificacion: CalificacionUpdate, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:
         with get_connection() as (cursor, conn):
             fields = []
@@ -120,7 +120,7 @@ def update_calificacion(calificacion_id: int, calificacion: CalificacionUpdate, 
 
 # Eliminar una calificación
 @router.delete("/{calificacion_id}")
-def delete_calificacion(calificacion_id: int, current_user: dict = Depends(get_current_user_swagger)):
+def delete_calificacion(calificacion_id: int, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("DELETE FROM calificacion WHERE id=%s", (calificacion_id,))

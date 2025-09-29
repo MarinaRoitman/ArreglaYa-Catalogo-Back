@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.rubro import RubroCreate, RubroUpdate, RubroOut
+from core.security import require_admin_role
 
 router = APIRouter(prefix="/rubros", tags=["Rubros"])
 
@@ -50,7 +51,7 @@ def get_rubro(rubro_id: int):
 
 # Actualizar rubro
 @router.patch("/{rubro_id}", response_model=RubroOut, summary="Actualizar rubro")
-def update_rubro(rubro_id: int, rubro: RubroUpdate):
+def update_rubro(rubro_id: int, rubro: RubroUpdate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -74,7 +75,7 @@ def update_rubro(rubro_id: int, rubro: RubroUpdate):
 
 # Eliminar rubro
 @router.delete("/{rubro_id}", summary="Eliminar rubro")
-def delete_rubro(rubro_id: int):
+def delete_rubro(rubro_id: int, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             cursor = conn.cursor()

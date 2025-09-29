@@ -3,12 +3,12 @@ from typing import List
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.zona import ZonaCreate, ZonaUpdate, ZonaOut
-from core.security import get_current_user, get_current_user_swagger
+from core.security import require_admin_role
 
 router = APIRouter(prefix="/zonas", tags=["Zonas"])
 
 @router.post("/", response_model=ZonaOut, summary="Crear zona")
-def create_zona(zona: ZonaCreate):
+def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -48,7 +48,7 @@ def get_zona(zona_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/{zona_id}", response_model=ZonaOut, summary="Modificar zona")
-def update_zona(zona_id: int, zona: ZonaUpdate):
+def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             
@@ -71,7 +71,7 @@ def update_zona(zona_id: int, zona: ZonaUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{zona_id}", summary="Eliminar zona")
-def delete_zona(zona_id: int):
+def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             cursor = conn.cursor()
