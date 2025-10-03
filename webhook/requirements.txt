@@ -4,4 +4,4 @@ gunicorn
 httpx
 PyMySQL
 cryptography
-dotenv
+python-dotenv

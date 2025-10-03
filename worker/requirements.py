@@ -3,4 +3,5 @@ time
 logging
 pymysql
 uuid
-dotenv
+PyMySQL
+python-dotenv
