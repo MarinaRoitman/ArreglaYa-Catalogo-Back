@@ -17,7 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # === Tests gate ===
+      # ===== API: tests gate =====
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -39,7 +39,7 @@ jobs:
 
       - name: Run unit tests
         run: pytest -q
-      # === fin tests gate ===
+      # ===== fin tests gate =====
 
       - name: Debug secrets (masked)
         shell: bash
@@ -56,7 +56,8 @@ jobs:
           echo "EC2_SSH_PASSWORD length: ${LEN}"
           echo "EC2_SSH_PASSWORD sha256 (first 12): ${HASH}"
 
-      - name: Copy backend code to EC2 (password auth)
+      # ===== Copiado de fuentes a EC2 =====
+      - name: Copy API to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -69,7 +70,34 @@ jobs:
           rm: true
           timeout: 3m
 
-      - name: Restart backend container on EC2
+      - name: Copy Webhook to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          source: "webhook/**"
+          target: "/home/ubuntu/catalogo/webhook"
+          strip_components: 1
+          overwrite: true
+          rm: true
+          timeout: 3m
+
+      - name: Copy Worker to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          source: "worker/**"
+          target: "/home/ubuntu/catalogo/worker"
+          strip_components: 1
+          overwrite: true
+          rm: true
+          timeout: 3m
+
+      # ===== Compose: build + up =====
+      - name: Restart services on EC2
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -78,11 +106,10 @@ jobs:
           script: |
             set -e
             cd /home/ubuntu/catalogo
-            echo "== Pulling updated images =="
-            sudo docker compose pull api || true
-            echo "== Rebuilding backend container =="
-            sudo docker compose build api
-            echo "== Restarting API container =="
-            sudo docker compose up -d api
-            echo "== Logs (last 30 lines) =="
-            sudo docker compose logs --tail=30 api
+            echo "== docker compose pull/build =="
+            sudo docker compose pull api webhook worker || true
+            sudo docker compose build api webhook worker
+            echo "== up -d =="
+            sudo docker compose up -d api webhook worker
+            echo "== logs tail =="
+            sudo docker compose logs --tail=30 api webhook worker || true
