@@ -38,6 +38,16 @@ def db():
         database=DB_NAME, cursorclass=pymysql.cursors.DictCursor, autocommit=True
     )
 
+# ===========================
+# Healthcheck endpoint
+# ===========================
+@app.get("/health")
+async def health():
+    return {"ok": True}
+
+# ===========================
+# Webhook endpoint
+# ===========================
 @app.post("/webhook")
 async def webhook(
     request: Request,
