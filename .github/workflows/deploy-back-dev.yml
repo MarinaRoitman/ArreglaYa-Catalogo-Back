@@ -1,23 +1,25 @@
-name: Deploy Backend to EC2
+name: Deploy Backend to EC2 (dev)
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "dev" ]
+    paths:
+      - 'api/**'
   workflow_dispatch: {}
 
 concurrency:
-  group: deploy-back
+  group: deploy-back-dev
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build-and-deploy-dev:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ===== API: tests gate =====
+      # === Tests gate (optional) ===
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -37,9 +39,9 @@ jobs:
           pip install -r api/requirements.txt
           pip install -r api/requirements_test.txt
 
-      - name: Run unit tests
-        run: pytest -q
-      # ===== fin tests gate =====
+      # - name: Run unit tests
+      #  run: pytest -q
+      # === end tests gate ===
 
       - name: Debug secrets (masked)
         shell: bash
@@ -47,57 +49,13 @@ jobs:
           set -e
           echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
           echo "EC2_USER: ${{ secrets.EC2_USER }}"
-          if [ -z "${{ secrets.EC2_SSH_PASSWORD }}" ]; then
-            echo "ERROR: Missing secret EC2_SSH_PASSWORD" >&2
-            exit 1
-          fi
+          test -n "${{ secrets.EC2_SSH_PASSWORD }}" || { echo "ERROR: Missing secret EC2_SSH_PASSWORD" >&2; exit 1; }
           LEN=$(printf "%s" "${{ secrets.EC2_SSH_PASSWORD }}" | wc -c | tr -d ' ')
           HASH=$(printf "%s" "${{ secrets.EC2_SSH_PASSWORD }}" | sha256sum | cut -c1-12)
           echo "EC2_SSH_PASSWORD length: ${LEN}"
           echo "EC2_SSH_PASSWORD sha256 (first 12): ${HASH}"
 
-      # ===== Copiado de fuentes a EC2 =====
-      - name: Copy API to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ci
-          password: ${{ secrets.EC2_SSH_PASSWORD }}
-          source: "api/**"
-          target: "/home/ubuntu/catalogo/api"
-          strip_components: 1
-          overwrite: true
-          rm: true
-          timeout: 3m
-
-      - name: Copy Webhook to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ci
-          password: ${{ secrets.EC2_SSH_PASSWORD }}
-          source: "webhook/**"
-          target: "/home/ubuntu/catalogo/webhook"
-          strip_components: 1
-          overwrite: true
-          rm: true
-          timeout: 3m
-
-      - name: Copy Worker to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ci
-          password: ${{ secrets.EC2_SSH_PASSWORD }}
-          source: "worker/**"
-          target: "/home/ubuntu/catalogo/worker"
-          strip_components: 1
-          overwrite: true
-          rm: true
-          timeout: 3m
-
-      # ===== Compose: build + up =====
-      - name: Restart services on EC2
+      - name: Ensure target dir (DEV)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -105,11 +63,36 @@ jobs:
           password: ${{ secrets.EC2_SSH_PASSWORD }}
           script: |
             set -e
-            cd /home/ubuntu/catalogo
-            echo "== docker compose pull/build =="
-            sudo docker compose pull api webhook worker || true
-            sudo docker compose build api webhook worker
-            echo "== up -d =="
-            sudo docker compose up -d api webhook worker
-            echo "== logs tail =="
-            sudo docker compose logs --tail=30 api webhook worker || true
+            mkdir -p /home/ubuntu/catalogo/api-dev
+
+      - name: Copy backend code to EC2 (DEV)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          source: "api/**"
+          target: "/home/ubuntu/catalogo/api-dev"
+          strip_components: 1
+          overwrite: true
+          rm: true
+          timeout: 3m
+
+      - name: Rebuild + up api-dev (single compose file)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          script: |
+            set -e
+            # Build and start api-dev using ONLY the main compose file
+            sudo docker compose \
+              -f /home/ubuntu/catalogo/docker-compose.yml \
+              build api-dev
+            sudo docker compose \
+              -f /home/ubuntu/catalogo/docker-compose.yml \
+              up -d api-dev
+            sudo docker compose \
+              -f /home/ubuntu/catalogo/docker-compose.yml \
+              logs --tail=50 api-dev

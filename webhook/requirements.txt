@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+gunicorn
+httpx
+PyMySQL
+cryptography
+python-dotenv
