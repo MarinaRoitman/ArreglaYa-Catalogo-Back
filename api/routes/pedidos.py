@@ -1,3 +1,7 @@
+from datetime import datetime, timezone
+from decimal import Decimal
+import json
+from core.events import publish_event
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
 from mysql.connector import Error
@@ -115,14 +119,76 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
 def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:
         with get_connection() as (cursor, conn):
+            # Obtener pedido original
+            cursor.execute("SELECT * FROM pedido WHERE id = %s", (pedido_id,))
+            pedido = cursor.fetchone()
+            if not pedido:
+                raise HTTPException(status_code=404, detail="Pedido no encontrado")
+            
+            # Actualizar estado a cancelado
             cursor.execute(
                 "UPDATE pedido SET estado = %s, fecha_ultima_actualizacion = NOW() WHERE id = %s",
                 ("cancelado", pedido_id)
             )
             conn.commit()
-            if cursor.rowcount == 0:
-                raise HTTPException(status_code=404, detail="Pedido no encontrado")
+            
+            # Obtener el pedido actualizado
+            cursor.execute("SELECT * FROM pedido WHERE id = %s", (pedido_id,))
+            pedido_actualizado = cursor.fetchone()
+            
+            # Datos del evento
+            channel = "catalogue.pedidos.cancelado"
+            event_name = "pedido_cancelado"
+
+            pedido_json_safe = convert_to_json_safe(pedido_actualizado)
+            payload = json.dumps(pedido_json_safe)
+
+            # Insertar evento en tabla local
+            insert_event_query = """
+                INSERT INTO eventos_publicados (channel, event_name, payload)
+                VALUES (%s, %s, %s)
+            """
+            cursor.execute(insert_event_query, (channel, event_name, payload))
+            conn.commit()
+
+            # Obtener ID y fecha del evento
+            event_id = cursor.lastrowid
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+
+            # Manejar si el cursor devuelve tupla o dict
+            if isinstance(event_row, dict):
+                created_at_value = event_row.get("created_at")
+            else:
+                created_at_value = event_row[0] if event_row else None
+
+            # Convertir a datetime ISO-8601 UTC
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+            
+            # Publicar evento en CoreHub
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=pedido_json_safe  # usar el que ya es JSON-safe
+            )
+            
             return {"detail": "Pedido cancelado correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+def convert_to_json_safe(obj):
+    if isinstance(obj, dict):
+        return {k: convert_to_json_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_json_safe(i) for i in obj]
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    else:
+        return obj
