@@ -8,6 +8,7 @@ from mysql.connector import Error
 from core.database import get_connection
 from schemas.pedido import PedidoCreate, PedidoUpdate, PedidoOut
 from core.security import require_admin_role, require_admin_or_prestador_role
+from schemas.pedido import EstadoPedido
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
@@ -90,27 +91,76 @@ def get_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_pre
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Modificar pedido
 @router.patch("/{pedido_id}", response_model=PedidoOut, summary="Modificar pedido")
 def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Depends(require_admin_or_prestador_role)):
     try:
         with get_connection() as (cursor, conn):
-            fields = []
-            values = []
+            fields, values = [], []
             for key, value in pedido.dict(exclude_unset=True).items():
                 fields.append(f"{key}=%s")
                 values.append(value)
             fields.append("fecha_ultima_actualizacion=NOW()")
             values.append(pedido_id)
+
             if not fields:
                 raise HTTPException(status_code=400, detail="No se enviaron datos para actualizar")
+
             query = f"UPDATE pedido SET {', '.join(fields)} WHERE id = %s"
             cursor.execute(query, tuple(values))
             conn.commit()
+
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
             cursor.execute("SELECT * FROM pedido WHERE id = %s", (pedido_id,))
-            return cursor.fetchone()
+            pedido_actualizado = cursor.fetchone()
+            
+            # --- Detectar tipo de evento según el nuevo estado ---
+            estado = pedido.model_dump(exclude_unset=True).get("estado")
+            if estado == "aprobado_por_prestador":
+                channel = "catalogue.pedidos.cotizacion_enviada"
+                event_name = "cotizacion_enviada"
+            elif estado == "finalizado":
+                channel = "catalogue.pedidos.finalizado"
+                event_name = "pedido_finalizado"
+            else:
+                return pedido_actualizado  # no publicamos evento si no aplica
+
+            # --- Publicar evento ---
+            pedido_json = convert_to_json_safe(pedido_actualizado)
+            payload = json.dumps(pedido_json, ensure_ascii=False)
+
+            cursor.execute(
+                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+                (channel, event_name, payload)
+            )
+            conn.commit()
+
+            event_id = cursor.lastrowid
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+
+            # Manejar si el cursor devuelve tupla o dict
+            if isinstance(event_row, dict):
+                created_at_value = event_row.get("created_at")
+            else:
+                created_at_value = event_row[0] if event_row else None
+
+            # Convertir a datetime ISO-8601 UTC
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=pedido_json
+            )
+
+            return pedido_actualizado
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -141,7 +191,7 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
             event_name = "pedido_cancelado"
 
             pedido_json_safe = convert_to_json_safe(pedido_actualizado)
-            payload = json.dumps(pedido_json_safe)
+            payload = json.dumps(pedido_json_safe, ensure_ascii=False)
 
             # Insertar evento en tabla local
             insert_event_query = """

@@ -22,7 +22,7 @@ def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_rol
             # Registrar evento en la tabla
             channel = "catalogue.zona.alta"
             event_name = "alta_zona"
-            payload = json.dumps(zona_creada)
+            payload = json.dumps(zona_creada, ensure_ascii=False)
 
             insert_event_query = """
                 INSERT INTO eventos_publicados (channel, event_name, payload)
@@ -106,7 +106,7 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
             # Registrar evento en la tabla
             channel = "catalogue.zona.modificacion"
             event_name = "modificacion_zona"
-            payload = json.dumps(zona_modificada)
+            payload = json.dumps(zona_modificada, ensure_ascii=False)
 
             insert_event_query = """
                 INSERT INTO eventos_publicados (channel, event_name, payload)
@@ -151,7 +151,7 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
             # Registrar evento en la tabla
             channel = "catalogue.zona.baja"
             event_name = "baja_zona"
-            payload = json.dumps({"id": zona_id})
+            payload = json.dumps({"id": zona_id}, ensure_ascii=False)
 
             insert_event_query = """
                 INSERT INTO eventos_publicados (channel, event_name, payload)
