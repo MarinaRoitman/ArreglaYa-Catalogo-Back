@@ -4,6 +4,9 @@ from mysql.connector import Error
 from core.database import get_connection
 from schemas.zona import ZonaCreate, ZonaUpdate, ZonaOut
 from core.security import require_admin_role
+from core.events import publish_event
+from datetime import datetime, timezone
+import json
 
 router = APIRouter(prefix="/zonas", tags=["Zonas"])
 
@@ -11,11 +14,43 @@ router = APIRouter(prefix="/zonas", tags=["Zonas"])
 def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            
             cursor.execute("INSERT INTO zona (nombre) VALUES (%s)", (zona.nombre,))
             conn.commit()
             new_id = cursor.lastrowid
-            return {"id": new_id, "nombre": zona.nombre}
+            zona_creada = {"id": new_id, "nombre": zona.nombre}
+
+            # Registrar evento en la tabla
+            channel = "catalogue.zona.alta"
+            event_name = "alta_zona"
+            payload = json.dumps(zona_creada)
+
+            insert_event_query = """
+                INSERT INTO eventos_publicados (channel, event_name, payload)
+                VALUES (%s, %s, %s)
+            """
+            cursor.execute(insert_event_query, (channel, event_name, payload))
+            conn.commit()
+
+            event_id = cursor.lastrowid
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else event_row[0]
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            # Publicar evento en CoreHub
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=zona_creada
+            )
+
+            return zona_creada
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -51,22 +86,55 @@ def get_zona(zona_id: int):
 def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            
             fields = []
             values = []
-            if zona.nombre is not None:
-                fields.append("nombre = %s")
-                values.append(zona.nombre)
+            for key, value in zona.dict(exclude_unset=True).items():
+                fields.append(f"{key}=%s")
+                values.append(value)
             if not fields:
-                raise HTTPException(status_code=400, detail="No se enviaron datos para actualizar")
+                raise HTTPException(status_code=400, detail="No se enviaron campos para actualizar")
             values.append(zona_id)
-            query = f"UPDATE zona SET {', '.join(fields)} WHERE id = %s"
+            query = f"UPDATE zona SET {', '.join(fields)} WHERE id=%s"
             cursor.execute(query, tuple(values))
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Zona no encontrada")
-            cursor.execute("SELECT id, nombre FROM zona WHERE id = %s", (zona_id,))
-            return cursor.fetchone()
+
+            cursor.execute("SELECT id, nombre FROM zona WHERE id=%s", (zona_id,))
+            zona_modificada = cursor.fetchone()
+
+            # Registrar evento en la tabla
+            channel = "catalogue.zona.modificacion"
+            event_name = "modificacion_zona"
+            payload = json.dumps(zona_modificada)
+
+            insert_event_query = """
+                INSERT INTO eventos_publicados (channel, event_name, payload)
+                VALUES (%s, %s, %s)
+            """
+            cursor.execute(insert_event_query, (channel, event_name, payload))
+            conn.commit()
+
+            event_id = cursor.lastrowid
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else event_row[0]
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            # Publicar evento en CoreHub
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=zona_modificada
+            )
+
+            return zona_modificada
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -74,11 +142,43 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
 def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM zona WHERE id = %s", (zona_id,))
+            # Opcional: puedes hacer baja lógica si tienes campo activo
+            cursor.execute("DELETE FROM zona WHERE id=%s", (zona_id,))
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Zona no encontrada")
-            return {"detail": "Zona eliminada correctamente"}
+
+            # Registrar evento en la tabla
+            channel = "catalogue.zona.baja"
+            event_name = "baja_zona"
+            payload = json.dumps({"id": zona_id})
+
+            insert_event_query = """
+                INSERT INTO eventos_publicados (channel, event_name, payload)
+                VALUES (%s, %s, %s)
+            """
+            cursor.execute(insert_event_query, (channel, event_name, payload))
+            conn.commit()
+
+            event_id = cursor.lastrowid
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else event_row[0]
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            # Publicar evento en CoreHub
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload={"id": zona_id}
+            )
+
+            return {"detail": f"Zona {zona_id} eliminada correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
