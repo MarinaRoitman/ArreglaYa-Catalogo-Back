@@ -4,7 +4,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
-from core.security import require_admin_role, require_prestador_role, require_admin_or_prestador_role
+from core.security import require_admin_role, require_prestador_role, require_admin_or_prestador_role, get_current_user_swagger
 
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
 
