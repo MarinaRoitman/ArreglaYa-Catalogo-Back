@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from schemas.prestador import PrestadorCreate, PrestadorOut
 from core.database import get_connection
-from core.security import get_password_hash, verify_password, create_access_token
+from core.security import verify_password, create_access_token
 from fastapi import Body, Depends
 from schemas.auth import LoginRequest
 
@@ -16,11 +16,9 @@ def register(prestador: PrestadorCreate):
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Email ya registrado")
 
-        hashed_pw = get_password_hash(prestador.password)
-
         cursor.execute(
             "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (prestador.nombre, prestador.apellido, prestador.direccion, prestador.email, hashed_pw, prestador.telefono, prestador.dni)
+            (prestador.nombre, prestador.apellido, prestador.direccion, prestador.email, prestador.password, prestador.telefono, prestador.dni)
         )
         conn.commit()
 

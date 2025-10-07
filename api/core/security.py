@@ -34,9 +34,6 @@ def get_current_user_swagger(credentials: HTTPAuthorizationCredentials = Securit
     except JWTError:
         raise credentials_exception
 
-def get_password_hash(password: str):
-    return pwd_context.hash(password)
-
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
