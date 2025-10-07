@@ -18,6 +18,9 @@ class PrestadorUpdate(BaseModel):
     telefono: Optional[str] = None
     activo: Optional[bool] = None
     contrasena: Optional[str] = None
+    dni: Optional[str] = None
+    habilidades: Optional[list] = None
+    zonas: Optional[list] = None
 
 class PrestadorOut(BaseModel):
     id: int

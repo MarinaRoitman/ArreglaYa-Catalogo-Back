@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.habilidad import HabilidadCreate, HabilidadUpdate, HabilidadOut
+from core.security import require_admin_role 
 
 router = APIRouter(prefix="/habilidades", tags=["Habilidades"])
 
@@ -46,10 +47,21 @@ def list_habilidades(nombre: str = None, id_rubro: int = None):
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/{habilidad_id}", response_model=HabilidadOut, summary="Obtener habilidad por ID")
+def get_habilidad(habilidad_id: int):
+    try:
+        with get_connection() as (cursor, conn):
+            cursor.execute("SELECT id, nombre, descripcion, id_rubro FROM habilidad WHERE id = %s", (habilidad_id,))
+            result = cursor.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Habilidad no encontrada")
+            return result
+    except Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Actualizar habilidad
 @router.put("/{habilidad_id}", response_model=HabilidadOut, summary="Actualizar habilidad")
-def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate):
+def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
             # Construir SET dinámico
@@ -85,10 +97,9 @@ def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate):
 
 # Eliminar habilidad
 @router.delete("/{habilidad_id}", summary="Eliminar habilidad")
-def delete_habilidad(habilidad_id: int):
+def delete_habilidad(habilidad_id: int, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
             cursor.execute("DELETE FROM habilidad WHERE id = %s", (habilidad_id,))
             conn.commit()
 
