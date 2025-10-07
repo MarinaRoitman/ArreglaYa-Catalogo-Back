@@ -5,3 +5,4 @@ httpx
 PyMySQL
 cryptography
 python-dotenv
+requests
