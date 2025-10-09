@@ -6,6 +6,7 @@ from .usuario import UsuarioBase, UsuarioOut
 class PrestadorBase(UsuarioBase):
     email: Optional[str] = None
     telefono: Optional[str] = None
+    foto: Optional[str] = None
 
 class PrestadorCreate(PrestadorBase):
     password: str
@@ -21,6 +22,7 @@ class PrestadorUpdate(BaseModel):
     dni: Optional[str] = None
     habilidades: Optional[list] = None
     zonas: Optional[list] = None
+    foto: Optional[str] = None
 
 class PrestadorOut(BaseModel):
     id: int
@@ -33,3 +35,4 @@ class PrestadorOut(BaseModel):
     activo: bool
     habilidades: Optional[list] = None
     zonas: Optional[list] = None
+    foto: Optional[str] = None

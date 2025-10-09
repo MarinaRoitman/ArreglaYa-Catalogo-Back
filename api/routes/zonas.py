@@ -142,7 +142,12 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
 def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            # Opcional: puedes hacer baja lógica si tienes campo activo
+            cursor.execute("SELECT id, nombre FROM zona WHERE id = %s", (zona_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Zona no encontrada")
+            nombre = row["nombre"] if isinstance(row, dict) else row[1]
+            
             cursor.execute("DELETE FROM zona WHERE id=%s", (zona_id,))
             conn.commit()
             if cursor.rowcount == 0:
@@ -151,7 +156,7 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
             # Registrar evento en la tabla
             channel = "catalogue.zona.baja"
             event_name = "baja_zona"
-            payload = json.dumps({"id": zona_id}, ensure_ascii=False)
+            payload = json.dumps({"id": zona_id, "nombre": nombre}, ensure_ascii=False)
 
             insert_event_query = """
                 INSERT INTO eventos_publicados (channel, event_name, payload)
@@ -176,7 +181,7 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
                 timestamp=timestamp,
                 channel=channel,
                 eventName=event_name,
-                payload={"id": zona_id}
+                payload={"id": zona_id, "nombre": nombre}
             )
 
             return {"detail": f"Zona {zona_id} eliminada correctamente"}
