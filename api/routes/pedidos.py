@@ -123,8 +123,12 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
             elif estado == "finalizado":
                 channel = "catalogue.pedidos.finalizado"
                 event_name = "pedido_finalizado"
+            elif estado == "cancelado":
+                channel = "catalogue.pedidos.cancelado"
+                event_name = "pedido_cancelado"
             else:
-                return pedido_actualizado  # no publicamos evento si no aplica
+                return pedido_actualizado
+                  # no publicamos evento si no aplica
 
             # --- Publicar evento ---
             pedido_json = convert_to_json_safe(pedido_actualizado)

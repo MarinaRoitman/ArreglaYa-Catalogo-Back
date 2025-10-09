@@ -6,6 +6,7 @@ class AdminBase(BaseModel):
     apellido: str
     email: str
     id_admin: Optional[int] = None
+    foto: Optional[str] = None
 
 class AdminCreate(AdminBase):
     password: str
@@ -17,8 +18,10 @@ class AdminUpdate(BaseModel):
     email: Optional[str] = None
     password: Optional[str] = None
     id_admin: Optional[int] = None
+    foto: Optional[str] = None
 
 class AdminOut(AdminBase):
     id: int
     activo: bool
     id_admin: Optional[int] = None
+    foto: Optional[str] = None

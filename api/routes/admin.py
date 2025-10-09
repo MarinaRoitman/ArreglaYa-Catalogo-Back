@@ -17,7 +17,7 @@ def list_admins(
 ):
     try:
         with get_connection() as (cursor, conn):
-            query = "SELECT id, nombre, apellido, email, activo, id_admin FROM admin WHERE 1=1"
+            query = "SELECT id, nombre, apellido, email, activo, id_admin, foto FROM admin WHERE 1=1"
             params = []
 
             if nombre:
@@ -41,15 +41,16 @@ def create_admin(admin: AdminCreate, current_user: dict = Depends(require_admin_
     try:
         with get_connection() as (cursor, conn):
             query = """INSERT INTO admin
-                       (nombre, apellido, email, password, id_admin, activo)
-                       VALUES (%s, %s, %s, %s, %s, %s)"""
+                       (nombre, apellido, email, password, id_admin, activo, foto)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)"""
             values = (
                 admin.nombre,
                 admin.apellido,
                 admin.email,
                 admin.password,
                 admin.id_admin,
-                True
+                True,
+                admin.foto
             )
             cursor.execute(query, values)
             conn.commit()
@@ -60,7 +61,8 @@ def create_admin(admin: AdminCreate, current_user: dict = Depends(require_admin_
                 "apellido": admin.apellido,
                 "email": admin.email,
                 "activo": True,
-                "id_admin": admin.id_admin
+                "id_admin": admin.id_admin,
+                "foto": admin.foto
             }
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -70,7 +72,7 @@ def create_admin(admin: AdminCreate, current_user: dict = Depends(require_admin_
 def get_admin(admin_id: int, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            cursor.execute("SELECT id, nombre, apellido, email, activo, id_admin FROM admin WHERE id = %s", (admin_id,))
+            cursor.execute("SELECT id, nombre, apellido, email, activo, id_admin, foto FROM admin WHERE id = %s", (admin_id,))
             result = cursor.fetchone()
             if not result:
                 raise HTTPException(status_code=404, detail="Admin no encontrado")
@@ -101,7 +103,7 @@ def update_admin(admin_id: int, admin: AdminUpdate, current_user: dict = Depends
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Admin no encontrado")
 
-            cursor.execute("SELECT id, nombre, apellido, email, activo, id_admin FROM admin WHERE id=%s", (admin_id,))
+            cursor.execute("SELECT id, nombre, apellido, email, activo, id_admin, foto FROM admin WHERE id=%s", (admin_id,))
             result = cursor.fetchone()
             return result
     except Error as e:

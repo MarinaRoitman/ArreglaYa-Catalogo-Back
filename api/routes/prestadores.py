@@ -5,8 +5,23 @@ from mysql.connector import Error
 from core.database import get_connection
 from schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
 from core.security import require_admin_role, require_prestador_role, require_admin_or_prestador_role, get_current_user_swagger
+from decimal import Decimal
+import json
+from datetime import datetime, timezone
+from core.events import publish_event
 
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
+
+def convert_to_json_safe(obj):
+    if isinstance(obj, dict):
+        return {k: convert_to_json_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_json_safe(v) for v in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
 
 # Listar todos con filtros opcionales
 @router.get("/", response_model=List[PrestadorOut],
@@ -172,6 +187,40 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
 
             cursor.execute("SELECT * FROM prestador WHERE id=%s", (prestador_id,))
             result = cursor.fetchone()
+
+            # --- Publicar evento de modificación ---
+            channel = "catalogue.prestador.modificacion"
+            event_name = "modificacion_prestador"
+            prestador_json = convert_to_json_safe(result)
+            payload_str = json.dumps(prestador_json, ensure_ascii=False)
+
+            cursor.execute(
+                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+                (channel, event_name, payload_str)
+            )
+            conn.commit()
+            event_id = cursor.lastrowid
+
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            if isinstance(event_row, dict):
+                created_at_value = event_row.get("created_at")
+            else:
+                created_at_value = event_row[0] if event_row else None
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=prestador_json
+            )
+
             return result
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -186,6 +235,44 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(require_adm
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Prestador no encontrado")
+
+            # Obtener el prestador actualizado
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            prestador_actualizado = cursor.fetchone()
+
+            # --- Publicar evento de baja ---
+            channel = "catalogue.prestador.baja"
+            event_name = "baja_prestador"
+            prestador_json = convert_to_json_safe(prestador_actualizado)
+            payload_str = json.dumps(prestador_json, ensure_ascii=False)
+
+            cursor.execute(
+                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+                (channel, event_name, payload_str)
+            )
+            conn.commit()
+            event_id = cursor.lastrowid
+
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            if isinstance(event_row, dict):
+                created_at_value = event_row.get("created_at")
+            else:
+                created_at_value = event_row[0] if event_row else None
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=prestador_json
+            )
+
             return {"detail": f"Prestador {prestador_id} dado de baja correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
