@@ -187,6 +187,23 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
 
             cursor.execute("SELECT * FROM prestador WHERE id=%s", (prestador_id,))
             result = cursor.fetchone()
+            
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            result["zonas"] = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            result["habilidades"] = cursor.fetchall()
 
             # --- Publicar evento de modificación ---
             channel = "catalogue.prestador.modificacion"
@@ -239,6 +256,23 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(require_adm
             # Obtener el prestador actualizado
             cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
             prestador_actualizado = cursor.fetchone()
+            
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["zonas"] = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["habilidades"] = cursor.fetchall()
 
             # --- Publicar evento de baja ---
             channel = "catalogue.prestador.baja"
@@ -277,7 +311,6 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(require_adm
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-#Agregar zona al prestador
 @router.post("/{prestador_id}/zonas", summary="Agregar zona a prestador")
 def add_zona_to_prestador(
     prestador_id: int,
@@ -286,12 +319,65 @@ def add_zona_to_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
             cursor.execute(
                 "INSERT INTO prestador_zona (id_prestador, id_zona) VALUES (%s, %s)",
                 (prestador_id, id_zona)
             )
             conn.commit()
+
+            # Obtener prestador actualizado con zonas y habilidades
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            prestador_actualizado = cursor.fetchone()
+            if not prestador_actualizado:
+                raise HTTPException(status_code=404, detail="Prestador no encontrado")
+
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["zonas"] = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["habilidades"] = cursor.fetchall()
+
+            # Publicar evento de modificación (mismo channel/event_name que el update)
+            channel = "catalogue.prestador.modificacion"
+            event_name = "modificacion_prestador"
+            prestador_json = convert_to_json_safe(prestador_actualizado)
+            payload_str = json.dumps(prestador_json, ensure_ascii=False)
+
+            cursor.execute(
+                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+                (channel, event_name, payload_str)
+            )
+            conn.commit()
+            event_id = cursor.lastrowid
+
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else (event_row[0] if event_row else None)
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=prestador_json
+            )
+
             return {"detail": f"Zona {id_zona} agregada al prestador {prestador_id}"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -305,7 +391,6 @@ def remove_zona_from_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
             cursor.execute(
                 "DELETE FROM prestador_zona WHERE id_prestador = %s AND id_zona = %s",
                 (prestador_id, id_zona)
@@ -313,9 +398,64 @@ def remove_zona_from_prestador(
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Relación no encontrada")
+
+            # Obtener prestador actualizado con zonas y habilidades
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            prestador_actualizado = cursor.fetchone()
+            if not prestador_actualizado:
+                raise HTTPException(status_code=404, detail="Prestador no encontrado")
+
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["zonas"] = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["habilidades"] = cursor.fetchall()
+
+            # Publicar evento de modificación
+            channel = "catalogue.prestador.modificacion"
+            event_name = "modificacion_prestador"
+            prestador_json = convert_to_json_safe(prestador_actualizado)
+            payload_str = json.dumps(prestador_json, ensure_ascii=False)
+
+            cursor.execute(
+                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+                (channel, event_name, payload_str)
+            )
+            conn.commit()
+            event_id = cursor.lastrowid
+
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else (event_row[0] if event_row else None)
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=prestador_json
+            )
+
             return {"detail": f"Zona {id_zona} quitada del prestador {prestador_id}"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 #Listar prestadores por zona
 @router.get("/zona/{id_zona}", response_model=List[PrestadorOut], summary="Listar prestadores por zona")
@@ -364,15 +504,69 @@ def add_habilidad_to_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
             cursor.execute(
                 "INSERT INTO prestador_habilidad (id_prestador, id_habilidad) VALUES (%s, %s)",
                 (prestador_id, id_habilidad)
             )
             conn.commit()
+
+            # Obtener prestador actualizado con zonas y habilidades
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            prestador_actualizado = cursor.fetchone()
+            if not prestador_actualizado:
+                raise HTTPException(status_code=404, detail="Prestador no encontrado")
+
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["zonas"] = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["habilidades"] = cursor.fetchall()
+
+            # Publicar evento de modificación
+            channel = "catalogue.prestador.modificacion"
+            event_name = "modificacion_prestador"
+            prestador_json = convert_to_json_safe(prestador_actualizado)
+            payload_str = json.dumps(prestador_json, ensure_ascii=False)
+
+            cursor.execute(
+                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+                (channel, event_name, payload_str)
+            )
+            conn.commit()
+            event_id = cursor.lastrowid
+
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else (event_row[0] if event_row else None)
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=prestador_json
+            )
+
             return {"detail": f"Habilidad {id_habilidad} agregada al prestador {prestador_id}"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 #Eliminar habilidad del prestador
 @router.delete("/{prestador_id}/habilidades", summary="Quitar habilidad a prestador")
@@ -383,7 +577,6 @@ def remove_habilidad_from_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
-            cursor = conn.cursor()
             cursor.execute(
                 "DELETE FROM prestador_habilidad WHERE id_prestador = %s AND id_habilidad = %s",
                 (prestador_id, id_habilidad)
@@ -391,9 +584,64 @@ def remove_habilidad_from_prestador(
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Relación no encontrada")
+
+            # Obtener prestador actualizado con zonas y habilidades
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            prestador_actualizado = cursor.fetchone()
+            if not prestador_actualizado:
+                raise HTTPException(status_code=404, detail="Prestador no encontrado")
+
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["zonas"] = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["habilidades"] = cursor.fetchall()
+
+            # Publicar evento de modificación
+            channel = "catalogue.prestador.modificacion"
+            event_name = "modificacion_prestador"
+            prestador_json = convert_to_json_safe(prestador_actualizado)
+            payload_str = json.dumps(prestador_json, ensure_ascii=False)
+
+            cursor.execute(
+                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+                (channel, event_name, payload_str)
+            )
+            conn.commit()
+            event_id = cursor.lastrowid
+
+            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
+            event_row = cursor.fetchone()
+            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else (event_row[0] if event_row else None)
+
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            publish_event(
+                messageId=str(event_id),
+                timestamp=timestamp,
+                channel=channel,
+                eventName=event_name,
+                payload=prestador_json
+            )
+
             return {"detail": f"Habilidad {id_habilidad} quitada del prestador {prestador_id}"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/habilidad/{id_habilidad}", response_model=List[PrestadorOut], summary="Listar prestadores por habilidad")
 def get_prestadores_by_habilidad(
@@ -431,23 +679,3 @@ def get_prestadores_by_habilidad(
             return prestadores
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# Crear un prestador. No se usa hasta la segunda entrega.
-# @router.post("/", response_model=PrestadorOut)
-# def create_prestador(prestador: PrestadorCreate):
-#     try:
-#         conn = get_connection()
-#         
-#         query = """INSERT INTO prestadores 
-#                    (nombre, apellido, email, telefono, direccion, id_zona) 
-#                    VALUES (%s, %s, %s, %s, %s, %s)"""
-#         values = (
-#             prestador.nombre, prestador.apellido, prestador.email,
-#             prestador.telefono, prestador.direccion, prestador.id_zona
-#         )
-#         cursor.execute(query, values)
-#         conn.commit()
-#         new_id = cursor.lastrowid
-#         return { "id": new_id, **prestador.dict() }
-#     except Error as e:
-#         raise HTTPException(status_code=500, detail=str(e))

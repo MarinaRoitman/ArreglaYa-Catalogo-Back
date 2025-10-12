@@ -60,6 +60,10 @@ def register(prestador: PrestadorCreate):
 
         # garantizar dict y valores serializables (foto vendrá desde la BD si no se envió)
         row_dict = _row_to_dict(cursor, row)
+        if "habilidades" not in row_dict:
+            row_dict["habilidades"] = []
+        if "zonas" not in row_dict:
+            row_dict["zonas"] = []
         prestador_json = _convert_to_json_safe(row_dict)
         payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
