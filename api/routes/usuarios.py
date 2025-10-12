@@ -19,7 +19,7 @@ def list_usuarios(
 ):
     try:
         with get_connection() as (cursor, conn):
-            query = "SELECT id, nombre, apellido, direccion, dni, telefono, activo FROM usuario WHERE 1=1"
+            query = "SELECT id, nombre, apellido, direccion, dni, telefono, activo, foto FROM usuario WHERE 1=1"
             params = []
 
             if nombre:
@@ -48,21 +48,26 @@ def list_usuarios(
 def create_usuario(usuario: UsuarioCreate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            query = """INSERT INTO usuario
-                       (nombre, apellido, direccion, dni, telefono, id_usuario)
-                       VALUES (%s, %s, %s, %s, %s, %s)"""
-            values = (
-                usuario.nombre,
-                usuario.apellido,
-                usuario.direccion,
-                usuario.dni,
-                usuario.telefono,
-                usuario.id_usuario
-            )
+            # construir INSERT condicional para permitir que la BD use el DEFAULT de 'foto' si no se envía
+            if getattr(usuario, "foto", None) is None:
+                query = ("INSERT INTO usuario (nombre, apellido, direccion, dni, telefono, id_usuario) "
+                         "VALUES (%s, %s, %s, %s, %s, %s)")
+                values = (usuario.nombre, usuario.apellido, usuario.direccion, usuario.dni, usuario.telefono, usuario.id_usuario)
+            else:
+                query = ("INSERT INTO usuario (nombre, apellido, direccion, dni, telefono, id_usuario, foto) "
+                         "VALUES (%s, %s, %s, %s, %s, %s, %s)")
+                values = (usuario.nombre, usuario.apellido, usuario.direccion, usuario.dni, usuario.telefono, usuario.id_usuario, usuario.foto)
+
             cursor.execute(query, values)
             conn.commit()
             new_id = cursor.lastrowid
-            return { "id": new_id, **usuario.dict() }
+
+            # recuperar fila creada (incluye foto por defecto si no se envió)
+            cursor.execute("SELECT id, nombre, apellido, direccion, dni, telefono, activo, id_usuario, foto FROM usuario WHERE id = %s", (new_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=500, detail="Error al recuperar usuario creado")
+            return row
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -8,6 +8,7 @@ class UsuarioBase(BaseModel):
     direccion: str
     dni: str
     id_usuario: Optional[int] = None
+    foto: Optional[str] = None
 
 class UsuarioCreate(UsuarioBase):
     telefono: Optional[str] = None
@@ -20,9 +21,11 @@ class UsuarioUpdate(BaseModel):
     dni: Optional[str] = None
     telefono: Optional[str] = None
     id_usuario: Optional[int] = None
+    foto: Optional[str] = None
 
 class UsuarioOut(UsuarioBase):
     id: int
     telefono: Optional[str] = None
     activo: bool
     id_usuario: Optional[int] = None
+    foto: Optional[str] = None
