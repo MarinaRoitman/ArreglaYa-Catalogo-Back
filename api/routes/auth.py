@@ -42,7 +42,7 @@ def register(prestador: PrestadorCreate):
             raise HTTPException(status_code=400, detail="Email o DNI ya registrado")
 
         # Hashear la contraseña ANTES de insertarla
-        hashed_password = get_password_hash(prestador.password)
+        # hashed_password = get_password_hash(prestador.password)
 
         cursor.execute(
             "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) "
