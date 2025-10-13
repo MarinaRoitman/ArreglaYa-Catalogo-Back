@@ -8,6 +8,8 @@ from schemas.auth import LoginRequest
 import json
 from datetime import datetime, timezone
 from core.events import publish_event
+from passlib.context import CryptContext
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -101,7 +103,6 @@ def login(credentials: LoginRequest = Body(...)):
         # Buscar en prestador
         cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (credentials.email,))
         user = cursor.fetchone()
-
         if user and verify_password(credentials.password, user["password"]):
             access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
             return {
@@ -117,7 +118,7 @@ def login(credentials: LoginRequest = Body(...)):
         cursor.close()
         conn.close()
 
-        if admin and verify_password(credentials.password, admin["password"]):
+        if admin and admin["password"] == credentials.password:
             access_token = create_access_token({"sub": str(admin["email"]), "role": "admin"})
             return {
                 "access_token": access_token,
