@@ -48,7 +48,7 @@ def register(prestador: PrestadorCreate):
             "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) "
             "VALUES (%s, %s, %s, %s, %s, %s, %s)",
             (prestador.nombre, prestador.apellido, prestador.direccion,
-             prestador.email, hashed_password, prestador.telefono, prestador.dni)
+             prestador.email, prestador.password, prestador.telefono, prestador.dni)
         )
         conn.commit()
         user_id = cursor.lastrowid
@@ -103,7 +103,8 @@ def login(credentials: LoginRequest = Body(...)):
         # Buscar en prestador
         cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (credentials.email,))
         user = cursor.fetchone()
-        if user and verify_password(credentials.password, user["password"]):
+        #if user and verify_password(credentials.password, user["password"]):
+        if user and credentials.password == user["password"]:
             access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
             return {
                 "access_token": access_token,
