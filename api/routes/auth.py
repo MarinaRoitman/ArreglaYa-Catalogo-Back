@@ -2,7 +2,7 @@ import decimal
 from fastapi import APIRouter, HTTPException, status
 from schemas.prestador import PrestadorCreate, PrestadorOut
 from core.database import get_connection
-from core.security import verify_password, create_access_token
+from core.security import verify_password, create_access_token, get_password_hash
 from fastapi import Body, Depends
 from schemas.auth import LoginRequest
 import json
@@ -73,9 +73,20 @@ def register(prestador: PrestadorCreate):
         prestador_json = _convert_to_json_safe(row)
         payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
+        # verificar si ya existe el dni
+        cursor.execute("SELECT * FROM prestador WHERE dni = %s AND activo = 1", (prestador.dni,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="DNI ya registrado")
+
         cursor.execute(
             "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
             (channel, event_name, payload_str)
+        )
+        # hashear la contraseña antes de almacenar
+        hashed_password = get_password_hash(prestador.password)
+        cursor.execute(
+            "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (prestador.nombre, prestador.apellido, prestador.direccion, prestador.email, hashed_password, prestador.telefono, prestador.dni)
         )
         conn.commit()
         event_id = cursor.lastrowid
@@ -106,7 +117,7 @@ def login(credentials: LoginRequest = Body(...)):
         cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (credentials.email,))
         user = cursor.fetchone()
 
-        if user and credentials.password == user["password"]:
+        if user and verify_password(credentials.password, user["password"]):
             access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
             return {
                 "access_token": access_token,
@@ -121,7 +132,7 @@ def login(credentials: LoginRequest = Body(...)):
         cursor.close()
         conn.close()
 
-        if admin and credentials.password == admin["password"]:
+        if admin and verify_password(credentials.password, admin["password"]):
             access_token = create_access_token({"sub": str(admin["email"]), "role": "admin"})
             return {
                 "access_token": access_token,

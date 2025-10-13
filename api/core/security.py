@@ -13,6 +13,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
+import logging
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
+
 # Deprecated: usar alguno de los require_..._role
 def get_current_user_swagger(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
     token = credentials.credentials
