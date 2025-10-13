@@ -166,9 +166,9 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             if "dni" in data and data["dni"] and not data["dni"].isdigit():
                 raise HTTPException(status_code=400, detail="El dni debe ser numérico")
             if "contrasena" in data and data["contrasena"]:
-                fields.append("password=%s")
-                values.append(get_password_hash(data["contrasena"]))
-                del data["contrasena"]
+                    fields.append("password=%s")
+                    values.append(data["contrasena"])
+                    del data["contrasena"]
 
             for key, value in data.items():
                 fields.append(f"{key}=%s")
