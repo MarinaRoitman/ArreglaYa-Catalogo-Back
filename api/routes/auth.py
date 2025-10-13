@@ -34,21 +34,24 @@ def _row_to_dict(cursor, row):
 @router.post("/register", response_model=PrestadorOut)
 def register(prestador: PrestadorCreate):
     with get_connection() as (cursor, conn):
-        # verificar si ya existe el email
-        cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (prestador.email,))
+        # Verificar si ya existe email o dni
+        cursor.execute("SELECT * FROM prestador WHERE (email = %s OR dni = %s) AND activo = 1", (prestador.email, prestador.dni))
         if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Email ya registrado")
+            raise HTTPException(status_code=400, detail="Email o DNI ya registrado")
 
-        query = ("INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s)")
-        values = (prestador.nombre, prestador.apellido, prestador.direccion,
-                    prestador.email, prestador.password, prestador.telefono, prestador.dni)
+        # Hashear la contraseña ANTES de insertarla
+        hashed_password = get_password_hash(prestador.password)
 
-        cursor.execute(query, values)
+        cursor.execute(
+            "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (prestador.nombre, prestador.apellido, prestador.direccion,
+             prestador.email, hashed_password, prestador.telefono, prestador.dni)
+        )
         conn.commit()
         user_id = cursor.lastrowid
 
-        # obtener fila sin devolver la password para respetar el response_model y mostrar la foto (posible default)
+        # Recuperar usuario
         cursor.execute(
             "SELECT id, nombre, apellido, direccion, email, telefono, dni, activo, foto "
             "FROM prestador WHERE id = %s",
@@ -58,47 +61,28 @@ def register(prestador: PrestadorCreate):
         if not row:
             raise HTTPException(status_code=500, detail="Error al recuperar prestador creado")
 
-        # garantizar dict y valores serializables (foto vendrá desde la BD si no se envió)
         row_dict = _row_to_dict(cursor, row)
-        if "habilidades" not in row_dict:
-            row_dict["habilidades"] = []
-        if "zonas" not in row_dict:
-            row_dict["zonas"] = []
+        row_dict.setdefault("habilidades", [])
+        row_dict.setdefault("zonas", [])
+
         prestador_json = _convert_to_json_safe(row_dict)
         payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
-        # --- Publicar evento de alta ---
+        # Publicar evento de alta
         channel = "catalogue.prestador.alta"
         event_name = "alta_prestador"
-        prestador_json = _convert_to_json_safe(row)
-        payload_str = json.dumps(prestador_json, ensure_ascii=False)
-
-        # verificar si ya existe el dni
-        cursor.execute("SELECT * FROM prestador WHERE dni = %s AND activo = 1", (prestador.dni,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="DNI ya registrado")
 
         cursor.execute(
             "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
             (channel, event_name, payload_str)
         )
-        # hashear la contraseña antes de almacenar
-        hashed_password = get_password_hash(prestador.password)
-        cursor.execute(
-            "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (prestador.nombre, prestador.apellido, prestador.direccion, prestador.email, hashed_password, prestador.telefono, prestador.dni)
-        )
         conn.commit()
+
+        # Enviar evento al Core
         event_id = cursor.lastrowid
-
         cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
-        event_row = cursor.fetchone()
-        created_at_value = event_row["created_at"] if isinstance(event_row, dict) else (event_row[0] if event_row else None)
-
-        if isinstance(created_at_value, datetime):
-            timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
-        else:
-            timestamp = datetime.now(timezone.utc).isoformat()
+        created_at_value = cursor.fetchone()
+        timestamp = datetime.now(timezone.utc).isoformat()
 
         publish_event(
             messageId=str(event_id),
@@ -108,7 +92,8 @@ def register(prestador: PrestadorCreate):
             payload=prestador_json
         )
 
-    return row
+        return row_dict
+
 
 @router.post("/login")
 def login(credentials: LoginRequest = Body(...)):
