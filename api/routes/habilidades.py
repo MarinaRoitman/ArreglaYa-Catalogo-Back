@@ -29,11 +29,12 @@ def create_habilidad(habilidad: HabilidadCreate):
                 "nombre": habilidad.nombre,
                 "descripcion": habilidad.descripcion,
                 "id_rubro": habilidad.id_rubro,
+                "activo": True
             }
 
             # Publicar evento de creación (guardar en tabla y enviar)
-            channel = "catalogue.habilidad.creacion"
-            event_name = "creacion_habilidad"
+            channel = "catalogue.habilidad.alta"
+            event_name = "alta_habilidad"
             payload_str = json.dumps(habilidad_creada, ensure_ascii=False)
 
             cursor.execute(
@@ -67,10 +68,10 @@ def create_habilidad(habilidad: HabilidadCreate):
 
 # Listar habilidades
 @router.get("/", response_model=List[HabilidadOut], summary="Listar habilidades")
-def list_habilidades(nombre: str = None, id_rubro: int = None):
+def list_habilidades(nombre: str = None, id_rubro: int = None, activo: bool = None):
     try:
         with get_connection() as (cursor, conn):
-            query = "SELECT id, nombre, descripcion, id_rubro FROM habilidad WHERE 1=1 and activo <> 0"
+            query = "SELECT id, nombre, descripcion, id_rubro, activo FROM habilidad WHERE 1=1 and activo <> 0"
             params = []
             if nombre:
                 query += " AND nombre LIKE %s"
@@ -78,6 +79,9 @@ def list_habilidades(nombre: str = None, id_rubro: int = None):
             if id_rubro:
                 query += " AND id_rubro = %s"
                 params.append(id_rubro)
+            if activo:
+                query += " AND activo = %s"
+                params.append(activo)
 
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
@@ -126,7 +130,7 @@ def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate, current_user
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Habilidad no encontrada")
 
-            cursor.execute("SELECT id, nombre, descripcion, id_rubro FROM habilidad WHERE id = %s", (habilidad_id,))
+            cursor.execute("SELECT id, nombre, descripcion, id_rubro, activo FROM habilidad WHERE id = %s", (habilidad_id,))
             updated = cursor.fetchone()
 
             # Publicar evento de modificación (mismo patrón que zonas)

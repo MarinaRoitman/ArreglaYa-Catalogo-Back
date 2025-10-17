@@ -36,7 +36,12 @@ def list_prestadores(
     apellido: Optional[str] = None,
     email: Optional[str] = None,
     telefono: Optional[str] = None,
-    direccion: Optional[str] = None,
+    estado: Optional[str] = None,
+    ciudad: Optional[str] = None,
+    calle: Optional[str] = None,
+    numero: Optional[str] = None,
+    piso: Optional[str] = None,
+    departamento: Optional[str] = None,
     id_zona: Optional[int] = None,
     dni: Optional[str] = None,
     activo: Optional[bool] = None,
@@ -59,9 +64,6 @@ def list_prestadores(
             if telefono:
                 query += " AND telefono LIKE %s"
                 params.append(f"%{telefono}%")
-            if direccion:
-                query += " AND direccion LIKE %s"
-                params.append(f"%{direccion}%")
             if id_zona:
                 query += " AND id_zona = %s"
                 params.append(id_zona)
@@ -71,6 +73,25 @@ def list_prestadores(
             if activo is not None:
                 query += " AND activo = %s"
                 params.append(activo)
+            if estado:
+                query += " AND estado LIKE %s"
+                params.append(f"%{estado}%")
+            if ciudad:
+                query += " AND ciudad LIKE %s"
+                params.append(f"%{ciudad}%")
+            if calle:
+                query += " AND calle LIKE %s"
+                params.append(f"%{calle}%")
+            if numero:
+                query += " AND numero LIKE %s"
+                params.append(f"%{numero}%")
+            if piso:
+                query += " AND piso LIKE %s"
+                params.append(f"%{piso}%")
+            if departamento:
+                query += " AND departamento LIKE %s"
+                params.append(f"%{departamento}%")
+                
 
             cursor.execute(query, tuple(params))
             prestadores = cursor.fetchall()

@@ -19,8 +19,11 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_adm
         with get_connection() as (cursor, conn):
             # INSERT
             query = """
-                INSERT INTO pedido (estado, descripcion, tarifa, fecha, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario, id_habilidad, id_pedido)
-                VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, %s, %s, %s)
+                INSERT INTO pedido (
+                    estado, descripcion, tarifa, fecha, id_prestador, id_usuario, id_habilidad, es_critico,
+                    fecha_creacion, fecha_ultima_actualizacion
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
             """
             values = (
                 pedido.estado,
@@ -30,7 +33,7 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_adm
                 pedido.id_prestador,
                 pedido.id_usuario,
                 pedido.id_habilidad,
-                pedido.id_pedido
+                pedido.es_critico
             )
             cursor.execute(query, values)
             conn.commit()
@@ -53,6 +56,7 @@ def list_pedidos(
     id_prestador: Optional[int] = None,
     estado: Optional[str] = None,
     id_habilidad: Optional[int] = None,
+    es_critico: Optional[bool] = None,
     current_user: dict = Depends(require_admin_or_prestador_role)
 ):
     try:
@@ -72,6 +76,9 @@ def list_pedidos(
             if id_habilidad:
                 query += " AND id_habilidad = %s"
                 params.append(id_habilidad)
+            if es_critico is not None:
+                query += " AND es_critico = %s"
+                params.append(es_critico)
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
     except Error as e:
