@@ -45,18 +45,30 @@ def register(prestador: PrestadorCreate):
         # hashed_password = get_password_hash(prestador.password)
 
         cursor.execute(
-            "INSERT INTO prestador (nombre, apellido, direccion, email, password, telefono, dni) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (prestador.nombre, prestador.apellido, prestador.direccion,
-             prestador.email, prestador.password, prestador.telefono, prestador.dni)
+            """
+            INSERT INTO prestador (
+                nombre, apellido, email, password, telefono, dni,
+                estado, ciudad, calle, numero, piso, departamento
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                prestador.nombre, prestador.apellido, prestador.email,
+                prestador.password, prestador.telefono, prestador.dni,
+                prestador.estado, prestador.ciudad, prestador.calle,
+                prestador.numero, prestador.piso, prestador.departamento
+            )
         )
         conn.commit()
         user_id = cursor.lastrowid
 
         # Recuperar usuario
         cursor.execute(
-            "SELECT id, nombre, apellido, direccion, email, telefono, dni, activo, foto "
-            "FROM prestador WHERE id = %s",
+            """
+            SELECT id, nombre, apellido, email, telefono, dni, activo, foto,
+                   estado, ciudad, calle, numero, piso, departamento
+            FROM prestador WHERE id = %s
+            """,
             (user_id,)
         )
         row = cursor.fetchone()

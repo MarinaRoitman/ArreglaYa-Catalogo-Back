@@ -19,7 +19,7 @@ def publish_event(messageId, timestamp, channel, eventName, payload):
         "payload": payload
     }
     response = requests.post(url, headers=headers, json=body)
-    """
+    #"""
     print(f"➡️ URL: {url}")
     print(f"➡️ Headers: {headers}")
     print(f"➡️ Body JSON:\n{json.dumps(body, indent=4, ensure_ascii=False)}")
@@ -29,4 +29,4 @@ def publish_event(messageId, timestamp, channel, eventName, payload):
     print(f"Respuesta del corehub====")
     print(f"⬅️ Código HTTP: {response.status_code}")
     print(f"⬅️ Texto completo:\n{response.text}")
-    """
+    #"""

@@ -7,6 +7,12 @@ class PrestadorBase(UsuarioBase):
     email: Optional[str] = None
     telefono: Optional[str] = None
     foto: Optional[str] = None
+    estado: Optional[str] = None
+    ciudad: Optional[str] = None
+    calle: Optional[str] = None
+    numero: Optional[str] = None
+    piso: Optional[str] = None
+    departamento: Optional[str] = None
 
 class PrestadorCreate(PrestadorBase):
     password: str
@@ -14,7 +20,6 @@ class PrestadorCreate(PrestadorBase):
 class PrestadorUpdate(BaseModel):
     nombre: Optional[str] = None
     apellido: Optional[str] = None
-    direccion: Optional[str] = None
     email: Optional[str] = None
     telefono: Optional[str] = None
     activo: Optional[bool] = None
@@ -23,12 +28,17 @@ class PrestadorUpdate(BaseModel):
     habilidades: Optional[list] = None
     zonas: Optional[list] = None
     foto: Optional[str] = None
+    estado: Optional[str] = None
+    ciudad: Optional[str] = None
+    calle: Optional[str] = None
+    numero: Optional[str] = None
+    piso: Optional[str] = None
+    departamento: Optional[str] = None
 
 class PrestadorOut(BaseModel):
     id: int
     nombre: str
     apellido: str
-    direccion: Optional[str] = None
     email: str
     telefono: Optional[str] = None
     dni: Optional[str] = None
@@ -36,3 +46,9 @@ class PrestadorOut(BaseModel):
     habilidades: Optional[list] = None
     zonas: Optional[list] = None
     foto: Optional[str] = None
+    estado: str
+    ciudad: str
+    calle: str
+    numero: str
+    piso: Optional[str] = None
+    departamento: Optional[str] = None

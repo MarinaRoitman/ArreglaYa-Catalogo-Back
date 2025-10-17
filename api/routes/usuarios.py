@@ -13,13 +13,17 @@ def list_usuarios(
     nombre: Optional[str] = None,
     apellido: Optional[str] = None,
     dni: Optional[str] = None,
-    direccion: Optional[str] = None,
+    estado_pri: Optional[str] = None,
+    ciudad_pri: Optional[str] = None,
     telefono: Optional[str] = None,
     current_user: dict = Depends(require_admin_role)
 ):
     try:
         with get_connection() as (cursor, conn):
-            query = "SELECT id, nombre, apellido, direccion, dni, telefono, activo, foto FROM usuario WHERE 1=1"
+            query = """SELECT id, nombre, apellido, dni, telefono, activo, foto,
+                      estado_pri, ciudad_pri, calle_pri, numero_pri, piso_pri, departamento_pri,
+                      estado_sec, ciudad_sec, calle_sec, numero_sec, piso_sec, departamento_sec 
+                      FROM usuario WHERE 1=1"""
             params = []
 
             if nombre:
@@ -31,9 +35,12 @@ def list_usuarios(
             if dni:
                 query += " AND dni LIKE %s"
                 params.append(f"%{dni}%")
-            if direccion:
-                query += " AND direccion LIKE %s"
-                params.append(f"%{direccion}%")
+            if estado_pri:
+                query += " AND estado_pri LIKE %s"
+                params.append(f"%{estado_pri}%")
+            if ciudad_pri:
+                query += " AND ciudad_pri LIKE %s"
+                params.append(f"%{ciudad_pri}%")
             if telefono:
                 query += " AND telefono LIKE %s"
                 params.append(f"%{telefono}%")
@@ -48,22 +55,43 @@ def list_usuarios(
 def create_usuario(usuario: UsuarioCreate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
-            # construir INSERT condicional para permitir que la BD use el DEFAULT de 'foto' si no se envía
-            if getattr(usuario, "foto", None) is None:
-                query = ("INSERT INTO usuario (nombre, apellido, direccion, dni, telefono, id_usuario) "
-                         "VALUES (%s, %s, %s, %s, %s, %s)")
-                values = (usuario.nombre, usuario.apellido, usuario.direccion, usuario.dni, usuario.telefono, usuario.id_usuario)
-            else:
-                query = ("INSERT INTO usuario (nombre, apellido, direccion, dni, telefono, id_usuario, foto) "
-                         "VALUES (%s, %s, %s, %s, %s, %s, %s)")
-                values = (usuario.nombre, usuario.apellido, usuario.direccion, usuario.dni, usuario.telefono, usuario.id_usuario, usuario.foto)
+            # Preparar campos y valores dinámicamente
+            campos = [
+                "nombre", "apellido", "dni", "telefono", "id_usuario",
+                "estado_pri", "ciudad_pri", "calle_pri", "numero_pri", "piso_pri", "departamento_pri",
+                "estado_sec", "ciudad_sec", "calle_sec", "numero_sec", "piso_sec", "departamento_sec"
+            ]
+            valores = [
+                usuario.nombre, usuario.apellido, usuario.dni, usuario.telefono, 
+                usuario.id_usuario,
+                usuario.estado_pri, usuario.ciudad_pri, usuario.calle_pri, 
+                usuario.numero_pri, usuario.piso_pri, usuario.departamento_pri,
+                usuario.estado_sec, usuario.ciudad_sec, usuario.calle_sec,
+                usuario.numero_sec, usuario.piso_sec, usuario.departamento_sec
+            ]
+
+            # Si hay foto, agregar el campo foto
+            if usuario.foto is not None:
+                campos.append("foto")
+                valores.append(usuario.foto)
+
+            # Construir la consulta dinámicamente
+            campos_str = ", ".join(campos)
+            placeholders = ", ".join(["%s"] * len(campos))
+            query = f"""INSERT INTO usuario ({campos_str})
+                       VALUES ({placeholders})"""
+            values = tuple(valores)
 
             cursor.execute(query, values)
             conn.commit()
             new_id = cursor.lastrowid
 
             # recuperar fila creada (incluye foto por defecto si no se envió)
-            cursor.execute("SELECT id, nombre, apellido, direccion, dni, telefono, activo, id_usuario, foto FROM usuario WHERE id = %s", (new_id,))
+            cursor.execute("""
+                SELECT id, nombre, apellido, dni, telefono, activo, id_usuario, foto,
+                estado_pri, ciudad_pri, calle_pri, numero_pri, piso_pri, departamento_pri,
+                estado_sec, ciudad_sec, calle_sec, numero_sec, piso_sec, departamento_sec
+                FROM usuario WHERE id = %s""", (new_id,))
             row = cursor.fetchone()
             if not row:
                 raise HTTPException(status_code=500, detail="Error al recuperar usuario creado")

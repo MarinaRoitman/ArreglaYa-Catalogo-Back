@@ -9,6 +9,10 @@ from decimal import Decimal
 import json
 from datetime import datetime, timezone
 from core.events import publish_event
+from services.validaciones import chequear_solicitudes_activas
+import logging as logger
+
+logger = logger.getLogger(__name__)
 
 router = APIRouter(prefix="/prestadores", tags=["Prestadores"])
 
@@ -32,7 +36,12 @@ def list_prestadores(
     apellido: Optional[str] = None,
     email: Optional[str] = None,
     telefono: Optional[str] = None,
-    direccion: Optional[str] = None,
+    estado: Optional[str] = None,
+    ciudad: Optional[str] = None,
+    calle: Optional[str] = None,
+    numero: Optional[str] = None,
+    piso: Optional[str] = None,
+    departamento: Optional[str] = None,
     id_zona: Optional[int] = None,
     dni: Optional[str] = None,
     activo: Optional[bool] = None,
@@ -55,9 +64,6 @@ def list_prestadores(
             if telefono:
                 query += " AND telefono LIKE %s"
                 params.append(f"%{telefono}%")
-            if direccion:
-                query += " AND direccion LIKE %s"
-                params.append(f"%{direccion}%")
             if id_zona:
                 query += " AND id_zona = %s"
                 params.append(id_zona)
@@ -67,6 +73,25 @@ def list_prestadores(
             if activo is not None:
                 query += " AND activo = %s"
                 params.append(activo)
+            if estado:
+                query += " AND estado LIKE %s"
+                params.append(f"%{estado}%")
+            if ciudad:
+                query += " AND ciudad LIKE %s"
+                params.append(f"%{ciudad}%")
+            if calle:
+                query += " AND calle LIKE %s"
+                params.append(f"%{calle}%")
+            if numero:
+                query += " AND numero LIKE %s"
+                params.append(f"%{numero}%")
+            if piso:
+                query += " AND piso LIKE %s"
+                params.append(f"%{piso}%")
+            if departamento:
+                query += " AND departamento LIKE %s"
+                params.append(f"%{departamento}%")
+                
 
             cursor.execute(query, tuple(params))
             prestadores = cursor.fetchall()
@@ -141,6 +166,10 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             if not existing:
                 raise HTTPException(status_code=404, detail="Prestador no encontrado")
             
+            fields = []
+            values = []
+            data = prestador.model_dump(exclude_unset=True)
+
             # Validar email duplicado (si se envía)
             if prestador.email:
                 cursor.execute("SELECT id FROM prestador WHERE email = %s AND id != %s", (prestador.email, prestador_id))
@@ -153,10 +182,6 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
                 if cursor.fetchone():
                     raise HTTPException(status_code=409, detail="DNI ya registrado en otro prestador")
 
-            fields = []
-            values = []
-
-            data = prestador.model_dump(exclude_unset=True)
             # validar que hayan datos que actualizar
             if not data:
                 raise HTTPException(status_code=400, detail="No se enviaron campos válidos para actualizar")
@@ -319,6 +344,20 @@ def add_zona_to_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
+            # Validar existencia de la zona
+            cursor.execute("SELECT id FROM zona WHERE id = %s", (id_zona,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="Zona no encontrada")
+
+            # verificar que no exista ya la zona en el prestador
+            cursor.execute(
+                "SELECT id FROM prestador_zona WHERE id_prestador = %s AND id_zona = %s",
+                (prestador_id, id_zona)
+            )
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="La zona ya está asociada al prestador")
+
+
             cursor.execute(
                 "INSERT INTO prestador_zona (id_prestador, id_zona) VALUES (%s, %s)",
                 (prestador_id, id_zona)
@@ -391,6 +430,8 @@ def remove_zona_from_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
+            # validar solicitudes activas
+            chequear_solicitudes_activas(prestador_id, cursor)
             cursor.execute(
                 "DELETE FROM prestador_zona WHERE id_prestador = %s AND id_zona = %s",
                 (prestador_id, id_zona)
@@ -504,6 +545,19 @@ def add_habilidad_to_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
+            # Validar existencia de la habilidad
+            cursor.execute("SELECT id FROM habilidad WHERE id = %s", (id_habilidad,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="Habilidad no encontrada")
+
+            # verificar que no exista ya la habilidad en el prestador
+            cursor.execute(
+                "SELECT id FROM prestador_habilidad WHERE id_prestador = %s AND id_habilidad = %s",
+                (prestador_id, id_habilidad)
+            )
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="La habilidad ya está asociada al prestador")
+            
             cursor.execute(
                 "INSERT INTO prestador_habilidad (id_prestador, id_habilidad) VALUES (%s, %s)",
                 (prestador_id, id_habilidad)
@@ -577,6 +631,10 @@ def remove_habilidad_from_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
+            
+            # validar solicitudes activas
+            chequear_solicitudes_activas(prestador_id, cursor)
+            
             cursor.execute(
                 "DELETE FROM prestador_habilidad WHERE id_prestador = %s AND id_habilidad = %s",
                 (prestador_id, id_habilidad)

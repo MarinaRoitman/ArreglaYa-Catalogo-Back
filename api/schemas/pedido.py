@@ -19,6 +19,7 @@ class PedidoBase(BaseModel):
     fecha: Optional[datetime] = None
     id_habilidad: Optional[int] = None
     id_pedido: Optional[int] = None
+    es_critico: Optional[bool] = False
 
 class PedidoCreate(PedidoBase):
     pass
@@ -30,6 +31,7 @@ class PedidoUpdate(BaseModel):
     fecha: Optional[datetime] = None
     id_habilidad: Optional[int] = None
     id_pedido: Optional[int] = None
+    es_critico: Optional[bool] = None
 
 class PedidoOut(PedidoBase):
     id: int
@@ -37,4 +39,5 @@ class PedidoOut(PedidoBase):
     fecha_ultima_actualizacion: datetime
     fecha: Optional[datetime] = None
     id_pedido: Optional[int] = None
+    es_critico: bool
     

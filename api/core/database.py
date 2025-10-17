@@ -23,7 +23,9 @@ db_config = {
 @contextlib.contextmanager
 def get_connection():
     conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
+    # Use a buffered cursor so multiple sequential queries on the same
+    # connection don't leave unread results and raise "Unread result found"
+    cursor = conn.cursor(buffered=True, dictionary=True)
     try:
         yield cursor,conn
     finally:
