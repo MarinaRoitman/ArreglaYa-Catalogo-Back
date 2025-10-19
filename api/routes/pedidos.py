@@ -20,10 +20,10 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_adm
             # INSERT
             query = """
                 INSERT INTO pedido (
-                    estado, descripcion, tarifa, fecha, id_prestador, id_usuario, id_habilidad, es_critico,
+                    estado, descripcion, tarifa, fecha, id_prestador, id_usuario, id_habilidad, id_zona, es_critico,
                     fecha_creacion, fecha_ultima_actualizacion
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
             """
             values = (
                 pedido.estado,
@@ -33,6 +33,7 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_adm
                 pedido.id_prestador,
                 pedido.id_usuario,
                 pedido.id_habilidad,
+                pedido.id_zona,
                 pedido.es_critico
             )
             cursor.execute(query, values)
@@ -56,6 +57,7 @@ def list_pedidos(
     id_prestador: Optional[int] = None,
     estado: Optional[str] = None,
     id_habilidad: Optional[int] = None,
+    id_zona: Optional[int] = None,
     es_critico: Optional[bool] = None,
     current_user: dict = Depends(require_admin_or_prestador_role)
 ):
@@ -76,6 +78,9 @@ def list_pedidos(
             if id_habilidad:
                 query += " AND id_habilidad = %s"
                 params.append(id_habilidad)
+            if id_zona:
+                query += " AND id_zona = %s"
+                params.append(id_zona)
             if es_critico is not None:
                 query += " AND es_critico = %s"
                 params.append(es_critico)

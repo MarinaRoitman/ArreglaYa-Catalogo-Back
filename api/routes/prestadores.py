@@ -9,7 +9,7 @@ from decimal import Decimal
 import json
 from datetime import datetime, timezone
 from core.events import publish_event
-from services.validaciones import chequear_solicitudes_activas
+from services.validaciones import chequear_pedidos_activos_por_habilidad, chequear_pedidos_activos_por_zona
 import logging as logger
 
 logger = logger.getLogger(__name__)
@@ -432,7 +432,8 @@ def remove_zona_from_prestador(
     try:
         with get_connection() as (cursor, conn):
             # validar solicitudes activas
-            chequear_solicitudes_activas(prestador_id, cursor)
+            chequear_pedidos_activos_por_zona(prestador_id, id_zona, cursor)
+            
             cursor.execute(
                 "DELETE FROM prestador_zona WHERE id_prestador = %s AND id_zona = %s",
                 (prestador_id, id_zona)
@@ -632,9 +633,8 @@ def remove_habilidad_from_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
-            
             # validar solicitudes activas
-            chequear_solicitudes_activas(prestador_id, cursor)
+            chequear_pedidos_activos_por_habilidad(prestador_id, id_habilidad, cursor)
             
             cursor.execute(
                 "DELETE FROM prestador_habilidad WHERE id_prestador = %s AND id_habilidad = %s",

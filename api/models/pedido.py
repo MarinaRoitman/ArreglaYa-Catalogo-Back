@@ -1,6 +1,6 @@
 # models/pedido.py
 class Pedido:
-    def __init__(self, id, estado, tarifa, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario, es_critico=False):
+    def __init__(self, id, estado, tarifa, fecha_creacion, fecha_ultima_actualizacion, id_prestador, id_usuario, id_zona, es_critico=False):
         self.id = id
         self.estado = estado
         self.tarifa = tarifa
@@ -8,5 +8,6 @@ class Pedido:
         self.fecha_ultima_actualizacion = fecha_ultima_actualizacion
         self.id_prestador = id_prestador
         self.id_usuario = id_usuario
+        self.id_zona = id_zona
         self.es_critico = es_critico
         

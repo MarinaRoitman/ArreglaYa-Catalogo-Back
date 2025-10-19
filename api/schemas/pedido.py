@@ -20,6 +20,7 @@ class PedidoBase(BaseModel):
     id_habilidad: Optional[int] = None
     id_pedido: Optional[int] = None
     es_critico: Optional[bool] = False
+    id_zona: Optional[int] = None
 
 class PedidoCreate(PedidoBase):
     pass
@@ -32,7 +33,8 @@ class PedidoUpdate(BaseModel):
     id_habilidad: Optional[int] = None
     id_pedido: Optional[int] = None
     es_critico: Optional[bool] = None
-
+    id_zona: Optional[int] = None
+    
 class PedidoOut(PedidoBase):
     id: int
     fecha_creacion: datetime
