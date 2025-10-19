@@ -3,7 +3,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.admin import AdminCreate, AdminUpdate, AdminOut
-from core.security import require_admin_role
+from core.security import get_password_hash, require_admin_role
 
 router = APIRouter(prefix="/admins", tags=["Admins"])
 
@@ -40,6 +40,7 @@ def list_admins(
 def create_admin(admin: AdminCreate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
+            hashed_password = get_password_hash(admin.password)
             query = """INSERT INTO admin
                        (nombre, apellido, email, password, id_admin, activo, foto)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)"""
@@ -47,7 +48,7 @@ def create_admin(admin: AdminCreate, current_user: dict = Depends(require_admin_
                 admin.nombre,
                 admin.apellido,
                 admin.email,
-                admin.password,
+                hashed_password,
                 admin.id_admin,
                 True,
                 admin.foto
@@ -88,6 +89,13 @@ def update_admin(admin_id: int, admin: AdminUpdate, current_user: dict = Depends
             fields = []
             values = []
 
+            update_data = admin.dict(exclude_unset=True)
+            if 'password' in update_data and update_data['password']:
+                hashed_password = get_password_hash(update_data['password'])
+                fields.append("password=%s")
+                values.append(hashed_password)
+                del update_data['password']
+                
             for key, value in admin.dict(exclude_unset=True).items():
                 fields.append(f"{key}=%s")
                 values.append(value)

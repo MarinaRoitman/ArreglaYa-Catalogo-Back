@@ -9,6 +9,7 @@ import json
 from datetime import datetime, timezone
 from core.events import publish_event
 from passlib.context import CryptContext
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -41,8 +42,7 @@ def register(prestador: PrestadorCreate):
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Email o DNI ya registrado")
 
-        # Hashear la contraseña ANTES de insertarla
-        # hashed_password = get_password_hash(prestador.password)
+        hashed_password = get_password_hash(prestador.password)
 
         cursor.execute(
             """
@@ -54,7 +54,7 @@ def register(prestador: PrestadorCreate):
             """,
             (
                 prestador.nombre, prestador.apellido, prestador.email,
-                prestador.password, prestador.telefono, prestador.dni,
+                hashed_password, prestador.telefono, prestador.dni,
                 prestador.estado, prestador.ciudad, prestador.calle,
                 prestador.numero, prestador.piso, prestador.departamento
             )
@@ -115,8 +115,7 @@ def login(credentials: LoginRequest = Body(...)):
         # Buscar en prestador
         cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (credentials.email,))
         user = cursor.fetchone()
-        #if user and verify_password(credentials.password, user["password"]):
-        if user and credentials.password == user["password"]:
+        if user and verify_password(credentials.password, user["password"]):
             access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
             return {
                 "access_token": access_token,
@@ -131,7 +130,7 @@ def login(credentials: LoginRequest = Body(...)):
         cursor.close()
         conn.close()
 
-        if admin and admin["password"] == credentials.password:
+        if admin and verify_password(credentials.password, admin["password"]):
             access_token = create_access_token({"sub": str(admin["email"]), "role": "admin"})
             return {
                 "access_token": access_token,
