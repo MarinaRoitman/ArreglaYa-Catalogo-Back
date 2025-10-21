@@ -1,6 +1,11 @@
 import json, logging
 from core_ack import send_ack
 from handlers import users
+from config import get_api_base_url
+
+
+API_BASE_URL = get_api_base_url()
+
 
 def process_message(conn, msg_id):
     try:
@@ -20,7 +25,7 @@ def process_message(conn, msg_id):
 
         # Despachador según canal (hay que completar con el resto de los canales)
         if channel.startswith("users."):
-            users.handle(event_name, payload)
+            users.handle(event_name, payload, API_BASE_URL)
         elif channel.startswith("search.pedido"):
             #pedidos.handle(event_name, payload)
             pass

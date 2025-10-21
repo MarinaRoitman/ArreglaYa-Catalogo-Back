@@ -11,17 +11,17 @@ headers = {
         "Content-Type": "application/json"
     }
 
-def handle(event_name, payload):
+def handle(event_name, payload, API_BASE_URL):
     data = payload.get("payload", {})
     logging.info(f"Procesando evento de usuario: {event_name} con payload {payload} y datos {data}")
-    if event_name == "UserCreated":
+    if event_name == "user_created":
         logging.info("👤 Alta de usuario recibida")
-        requests.post("http://localhost:8000/usuarios", json=data, headers=headers) # modificar para que apunte a la url correcta (local o prod)
-    elif event_name == "UpdateUser":
+        requests.post(f"{API_BASE_URL}/usuarios", json=data, headers=headers) # modificar para que apunte a la url correcta (local o prod)
+    elif event_name == "user_updated":
         logging.info("✏️ Actualización de usuario")
-        requests.patch("http://catalogo:8000/usuarios", json=data, headers=headers)
-    elif event_name == "DeleteUser":
+        requests.patch(f"{API_BASE_URL}/usuarios", json=data, headers=headers)
+    elif event_name == "user_rejected":
         logging.info("🗑️ Baja de usuario")
-        requests.delete("http://catalogo:8000/usuarios", json=data, headers=headers)
+        requests.delete(f"{API_BASE_URL}/usuarios", json=data, headers=headers)
     else:
         logging.info(f"Evento de usuario no manejado: {event_name}")
