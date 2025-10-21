@@ -1,6 +1,7 @@
 # api/worker/worker.py
 import os, time, logging, pymysql, uuid
 from dotenv import load_dotenv
+from process import process_message
 
 # Cargar .env (busca en el cwd y en la raíz del proyecto)
 load_dotenv()
@@ -87,24 +88,42 @@ def claim_one(conn):
         except: pass
         return None
 
+# Esto solo simula el procesamiento real
+""" 
 def process_message(mid):
     logging.info(f"Procesando mensaje messageId={mid}")
     time.sleep(1)
-    logging.info(f"Procesamiento terminado messageId={mid}")
+    logging.info(f"Procesamiento terminado messageId={mid}")"""
 
 def run():
     logging.info(f"Worker iniciado id={WORKER_ID}")
-    conn = db()
-    ensure_schema(conn)
-    try:
-        while True:
-            mid = claim_one(conn)
-            if mid:
-                process_message(mid)
+    while True:
+        try:
+            # 🔁 Nueva conexión en cada ciclo
+            conn = db()
+            ensure_schema(conn)
+
+            msg_id = claim_one(conn)
+            if msg_id:
+                process_message(conn, msg_id)
             else:
+                # 🔄 No hay mensajes nuevos, esperar un poco
+                logging.debug("Sin mensajes pendientes...")
                 time.sleep(POLL_INTERVAL_SEC)
-    finally:
-        conn.close()
+
+        except pymysql.err.OperationalError as e:
+            logging.error(f"Error de conexión con la base de datos: {e}")
+            time.sleep(5)  # Reintentar más tarde
+
+        except Exception as e:
+            logging.exception(f"💥 Error inesperado en el loop principal: {e}")
+            time.sleep(5)
+
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass  # Evita crash si conn no estaba abierta
 
 if __name__ == "__main__":
     run()

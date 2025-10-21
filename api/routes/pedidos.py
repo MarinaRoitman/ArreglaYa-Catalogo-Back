@@ -168,13 +168,15 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
             else:
                 timestamp = datetime.now(timezone.utc).isoformat()
 
-            publish_event(
-                messageId=str(event_id),
-                timestamp=timestamp,
-                channel=channel,
-                eventName=event_name,
-                payload=pedido_json
-            )
+            # Para evitar el loop infinito
+            if payload.get("source") == "catalogue":
+                publish_event(
+                    messageId=str(event_id),
+                    timestamp=timestamp,
+                    channel=channel,
+                    eventName=event_name,
+                    payload=pedido_json
+                )
 
             return pedido_actualizado
     except Error as e:

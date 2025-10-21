@@ -29,7 +29,7 @@ def create_habilidad(habilidad: HabilidadCreate):
                 "nombre": habilidad.nombre,
                 "descripcion": habilidad.descripcion,
                 "id_rubro": habilidad.id_rubro,
-                "activo": True
+                "activo": 1
             }
 
             # Publicar evento de creación (guardar en tabla y enviar)

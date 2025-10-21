@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from mysql.connector import Error
@@ -97,6 +98,7 @@ def create_usuario(usuario: UsuarioCreate, current_user: dict = Depends(require_
                 raise HTTPException(status_code=500, detail="Error al recuperar usuario creado")
             return row
     except Error as e:
+        logging.exception(f"Error creando usuario: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
