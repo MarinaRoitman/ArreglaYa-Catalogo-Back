@@ -2,10 +2,11 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 import hmac
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Security
+from fastapi import Depends, HTTPException, status, Security, Header
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 import os
 
+INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN")
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
@@ -81,6 +82,36 @@ def require_admin_role(current_user: dict = Depends(get_current_user_swagger)):
             detail="Acceso permitido solo para administradores"
         )
     return current_user
+
+def get_current_user_optional(authorization: str = Header(None)):
+    """Versión opcional del decode, no falla si no hay token."""
+    if not authorization:
+        return None
+    try:
+        scheme, token = authorization.split()
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"id": payload.get("sub"), "role": payload.get("role")}
+    except Exception:
+        return None
+
+def require_internal_or_admin(
+    x_internal_token: str = Header(None),
+    authorization: str = Header(None)
+):
+    # 1️⃣ Si viene el token interno válido → OK
+    if x_internal_token and x_internal_token == INTERNAL_API_TOKEN:
+        return {"role": "internal"}
+
+    # 2️⃣ Caso contrario, tratamos de validar el JWT si existe
+    user = get_current_user_optional(authorization)
+    if user and user.get("role") == "admin":
+        return user
+
+    # 3️⃣ Si no pasó ninguno, rechazamos
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=f"Acceso no autorizado (se requiere rol admin o token interno.){x_internal_token}|{INTERNAL_API_TOKEN}"
+    )
 
 def require_admin_or_prestador_role(current_user: dict = Depends(get_current_user_swagger)):
     if current_user.get("role") not in ["admin", "prestador"]:

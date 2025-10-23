@@ -4,7 +4,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioOut
-from core.security import require_admin_role, require_admin_or_prestador_role
+from core.security import require_admin_role, require_admin_or_prestador_role, require_internal_or_admin
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
@@ -53,7 +53,7 @@ def list_usuarios(
 
 # Crear un usuario (registro público → no requiere JWT)
 @router.post("/", response_model=UsuarioOut)
-def create_usuario(usuario: UsuarioCreate, current_user: dict = Depends(require_admin_role)):
+def create_usuario(usuario: UsuarioCreate, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             # Preparar campos y valores dinámicamente
@@ -117,7 +117,13 @@ def get_usuario(usuario_id: int, current_user: dict = Depends(require_admin_or_p
 
 # Actualizar un usuario (requiere JWT)
 @router.patch("/{usuario_id}", response_model=UsuarioOut)
-def update_usuario(usuario_id: int, usuario: UsuarioUpdate, current_user: dict = Depends(require_admin_role)):
+def update_usuario(
+    usuario_id: int,
+    usuario: UsuarioUpdate,
+    current_user: dict = Depends(require_internal_or_admin)
+):
+    ...
+
     try:
         with get_connection() as (cursor, conn):
             fields = []
