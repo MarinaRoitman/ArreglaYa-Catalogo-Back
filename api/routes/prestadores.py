@@ -232,14 +232,14 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             result["habilidades"] = cursor.fetchall()
 
             # --- Publicar evento de modificación ---
-            channel = "catalogue.prestador.modificacion"
+            topic = "catalogue.prestador.modificacion"
             event_name = "modificacion_prestador"
             prestador_json = convert_to_json_safe(result)
             payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload_str)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload_str)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -259,7 +259,7 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=prestador_json
             )
@@ -301,14 +301,14 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(require_adm
             prestador_actualizado["habilidades"] = cursor.fetchall()
 
             # --- Publicar evento de baja ---
-            channel = "catalogue.prestador.baja"
+            topic = "catalogue.prestador.baja"
             event_name = "baja_prestador"
             prestador_json = convert_to_json_safe(prestador_actualizado)
             payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload_str)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload_str)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -328,7 +328,7 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(require_adm
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=prestador_json
             )
@@ -388,15 +388,15 @@ def add_zona_to_prestador(
             """, (prestador_id,))
             prestador_actualizado["habilidades"] = cursor.fetchall()
 
-            # Publicar evento de modificación (mismo channel/event_name que el update)
-            channel = "catalogue.prestador.modificacion"
+            # Publicar evento de modificación (mismo topic/event_name que el update)
+            topic = "catalogue.prestador.modificacion"
             event_name = "modificacion_prestador"
             prestador_json = convert_to_json_safe(prestador_actualizado)
             payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload_str)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload_str)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -413,7 +413,7 @@ def add_zona_to_prestador(
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=prestador_json
             )
@@ -466,14 +466,14 @@ def remove_zona_from_prestador(
             prestador_actualizado["habilidades"] = cursor.fetchall()
 
             # Publicar evento de modificación
-            channel = "catalogue.prestador.modificacion"
+            topic = "catalogue.prestador.modificacion"
             event_name = "modificacion_prestador"
             prestador_json = convert_to_json_safe(prestador_actualizado)
             payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload_str)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload_str)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -490,7 +490,7 @@ def remove_zona_from_prestador(
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=prestador_json
             )
@@ -590,14 +590,14 @@ def add_habilidad_to_prestador(
             prestador_actualizado["habilidades"] = cursor.fetchall()
 
             # Publicar evento de modificación
-            channel = "catalogue.prestador.modificacion"
+            topic = "catalogue.prestador.modificacion"
             event_name = "modificacion_prestador"
             prestador_json = convert_to_json_safe(prestador_actualizado)
             payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload_str)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload_str)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -614,7 +614,7 @@ def add_habilidad_to_prestador(
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=prestador_json
             )
@@ -668,14 +668,14 @@ def remove_habilidad_from_prestador(
             prestador_actualizado["habilidades"] = cursor.fetchall()
 
             # Publicar evento de modificación
-            channel = "catalogue.prestador.modificacion"
+            topic = "catalogue.prestador.modificacion"
             event_name = "modificacion_prestador"
             prestador_json = convert_to_json_safe(prestador_actualizado)
             payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload_str)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload_str)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -692,7 +692,7 @@ def remove_habilidad_from_prestador(
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=prestador_json
             )

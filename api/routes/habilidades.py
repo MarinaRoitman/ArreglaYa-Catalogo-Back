@@ -9,21 +9,18 @@ from datetime import datetime, timezone
 from core.events import publish_event
 
 router = APIRouter(prefix="/habilidades", tags=["Habilidades"])
-
-# Crear habilidad
-@router.post("/", response_model=HabilidadOut, summary="Crear habilidad")
+@router.post("/", summary="Crear habilidad")
 def create_habilidad(habilidad: HabilidadCreate):
     try:
         with get_connection() as (cursor, conn):
+            #  Guardar la habilidad en DB local
             cursor.execute(
                 "INSERT INTO habilidad (nombre, descripcion, id_rubro) VALUES (%s, %s, %s)",
                 (habilidad.nombre, habilidad.descripcion, habilidad.id_rubro)
             )
             conn.commit()
-            # Obtener el id de la habilidad recién creada antes de publicar
             habilidad_id = cursor.lastrowid
 
-            # Preparar payload como dict (serializable)
             habilidad_creada = {
                 "id": habilidad_id,
                 "nombre": habilidad.nombre,
@@ -32,39 +29,34 @@ def create_habilidad(habilidad: HabilidadCreate):
                 "activo": 1
             }
 
-            # Publicar evento de creación (guardar en tabla y enviar)
-            channel = "catalogue.habilidad.alta"
-            event_name = "alta_habilidad"
+            # Registrar el evento localmente
+            topic = "habilidad"
+            event_name = "created"
             payload_str = json.dumps(habilidad_creada, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload_str)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload_str)
             )
             conn.commit()
             event_id = cursor.lastrowid
 
-            cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
-            event_row = cursor.fetchone()
-            created_at_value = event_row["created_at"] if isinstance(event_row, dict) else (event_row[0] if event_row else None)
+            # Obtener timestamp ISO UTC
+            timestamp = datetime.now(timezone.utc).isoformat()
 
-            if isinstance(created_at_value, datetime):
-                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
-            else:
-                timestamp = datetime.now(timezone.utc).isoformat()
-
+            # Publicar al Core Hub
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
-                eventName=event_name,
+                topic=topic,
+                event_name=event_name,
                 payload=habilidad_creada,
             )
 
             return habilidad_creada
+
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # Listar habilidades
 @router.get("/", response_model=List[HabilidadOut], summary="Listar habilidades")
@@ -134,12 +126,12 @@ def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate, current_user
             updated = cursor.fetchone()
 
             # Publicar evento de modificación (mismo patrón que zonas)
-            channel = "catalogue.habilidad.modificacion"
+            topic = "catalogue.habilidad.modificacion"
             event_name = "modificacion_habilidad"
             payload = json.dumps(updated, ensure_ascii=False)
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -154,10 +146,10 @@ def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate, current_user
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
-                eventName=event_name,
+                topic=topic,
+                event_name=event_name,
                 payload=updated,
             )
 
@@ -196,12 +188,12 @@ def delete_habilidad(habilidad_id: int, current_user: dict = Depends(require_adm
             registro = cursor.fetchone()
 
             # Publicar evento de baja
-            channel = "catalogue.habilidad.baja"
+            topic = "catalogue.habilidad.baja"
             event_name = "baja_habilidad"
             payload = json.dumps(registro if registro else {"id": habilidad_id}, ensure_ascii=False)
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -216,10 +208,10 @@ def delete_habilidad(habilidad_id: int, current_user: dict = Depends(require_adm
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
-                eventName=event_name,
+                topic=topic,
+                event_name=event_name,
                 payload=registro if registro else {"id": habilidad_id},
             )
 
@@ -246,12 +238,12 @@ def reactivate_habilidad(habilidad_id: int, current_user: dict = Depends(require
             registro = cursor.fetchone()
 
             # Publicar evento de reactivación
-            channel = "catalogue.habilidad.reactivacion"
+            topic = "catalogue.habilidad.reactivacion"
             event_name = "reactivacion_habilidad"
             payload = json.dumps(registro if registro else {"id": habilidad_id}, ensure_ascii=False)
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload)
             )
             conn.commit()
             event_id = cursor.lastrowid
@@ -268,7 +260,7 @@ def reactivate_habilidad(habilidad_id: int, current_user: dict = Depends(require
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=registro if registro else {"id": habilidad_id},
             )

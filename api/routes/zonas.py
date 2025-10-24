@@ -20,15 +20,15 @@ def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_rol
             zona_creada = {"id": new_id, "nombre": zona.nombre}
 
             # Registrar evento en la tabla
-            channel = "catalogue.zona.alta"
+            topic = "catalogue.zona.alta"
             event_name = "alta_zona"
             payload = json.dumps(zona_creada, ensure_ascii=False)
 
             insert_event_query = """
-                INSERT INTO eventos_publicados (channel, event_name, payload)
+                INSERT INTO eventos_publicados (topic, event_name, payload)
                 VALUES (%s, %s, %s)
             """
-            cursor.execute(insert_event_query, (channel, event_name, payload))
+            cursor.execute(insert_event_query, (topic, event_name, payload))
             conn.commit()
 
             event_id = cursor.lastrowid
@@ -45,7 +45,7 @@ def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_rol
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=zona_creada
             )
@@ -104,15 +104,15 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
             zona_modificada = cursor.fetchone()
 
             # Registrar evento en la tabla
-            channel = "catalogue.zona.modificacion"
+            topic = "catalogue.zona.modificacion"
             event_name = "modificacion_zona"
             payload = json.dumps(zona_modificada, ensure_ascii=False)
 
             insert_event_query = """
-                INSERT INTO eventos_publicados (channel, event_name, payload)
+                INSERT INTO eventos_publicados (topic, event_name, payload)
                 VALUES (%s, %s, %s)
             """
-            cursor.execute(insert_event_query, (channel, event_name, payload))
+            cursor.execute(insert_event_query, (topic, event_name, payload))
             conn.commit()
 
             event_id = cursor.lastrowid
@@ -129,7 +129,7 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=zona_modificada
             )
@@ -154,15 +154,15 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
                 raise HTTPException(status_code=404, detail="Zona no encontrada")
 
             # Registrar evento en la tabla
-            channel = "catalogue.zona.baja"
+            topic = "catalogue.zona.baja"
             event_name = "baja_zona"
             payload = json.dumps({"id": zona_id, "nombre": nombre}, ensure_ascii=False)
 
             insert_event_query = """
-                INSERT INTO eventos_publicados (channel, event_name, payload)
+                INSERT INTO eventos_publicados (topic, event_name, payload)
                 VALUES (%s, %s, %s)
             """
-            cursor.execute(insert_event_query, (channel, event_name, payload))
+            cursor.execute(insert_event_query, (topic, event_name, payload))
             conn.commit()
 
             event_id = cursor.lastrowid
@@ -179,7 +179,7 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload={"id": zona_id, "nombre": nombre}
             )

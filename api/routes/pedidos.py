@@ -130,13 +130,13 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
             # --- Detectar tipo de evento según el nuevo estado ---
             estado = pedido.model_dump(exclude_unset=True).get("estado")
             if estado == "aprobado_por_prestador":
-                channel = "catalogue.pedidos.cotizacion_enviada"
+                topic = "catalogue.pedidos.cotizacion_enviada"
                 event_name = "cotizacion_enviada"
             elif estado == "finalizado":
-                channel = "catalogue.pedidos.finalizado"
+                topic = "catalogue.pedidos.finalizado"
                 event_name = "pedido_finalizado"
             elif estado == "cancelado":
-                channel = "catalogue.pedidos.cancelado"
+                topic = "catalogue.pedidos.cancelado"
                 event_name = "pedido_cancelado"
             else:
                 return pedido_actualizado
@@ -147,8 +147,8 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
             payload = json.dumps(pedido_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload)
             )
             conn.commit()
 
@@ -169,14 +169,14 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             # Para evitar el loop infinito
-            if payload.get("source") == "catalogue":
-                publish_event(
-                    messageId=str(event_id),
-                    timestamp=timestamp,
-                    channel=channel,
-                    eventName=event_name,
-                    payload=pedido_json
-                )
+            #if payload.get("source") == "catalogue": # ver como modificarlo
+            publish_event( 
+                messageId=str(event_id),
+                timestamp=timestamp,
+                topic=topic,
+                eventName=event_name,
+                payload=pedido_json
+            )
 
             return pedido_actualizado
     except Error as e:
@@ -205,7 +205,7 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
             pedido_actualizado = cursor.fetchone()
             
             # Datos del evento
-            channel = "catalogue.pedidos.cancelado"
+            topic = "catalogue.pedidos.cancelado"
             event_name = "pedido_cancelado"
 
             pedido_json_safe = convert_to_json_safe(pedido_actualizado)
@@ -213,10 +213,10 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
 
             # Insertar evento en tabla local
             insert_event_query = """
-                INSERT INTO eventos_publicados (channel, event_name, payload)
+                INSERT INTO eventos_publicados (topic, event_name, payload)
                 VALUES (%s, %s, %s)
             """
-            cursor.execute(insert_event_query, (channel, event_name, payload))
+            cursor.execute(insert_event_query, (topic, event_name, payload))
             conn.commit()
 
             # Obtener ID y fecha del evento
@@ -240,7 +240,7 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=pedido_json_safe  # usar el que ya es JSON-safe
             )

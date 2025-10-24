@@ -22,32 +22,32 @@ def process_message(conn, msg_id):
             return
 
         payload = json.loads(event["payload"])
-        channel = event["channel"]
+        topic = event["topic"]
         event_name = event["event_name"]
         sub_id = event["subscription_id"]
 
-        logging.info(f"🔍 Procesando {channel} - {event_name}")
+        logging.info(f"🔍 Procesando {topic} - {event_name}")
 
         # Despachador según canal (hay que completar con el resto de los canales)
         # Despachador según canal
-        if channel.startswith("users."):
+        if topic == "user":
             # Usuarios (clientes, prestadores, admins)
             logging.info("headers inside process_message: ", headers)
             users.handle(event_name, payload, API_BASE_URL, headers)
 
-        elif channel.startswith("matching.") or channel.startswith("solicitud.") or channel.startswith("cotizacion."):
+        elif topic == "matching." or topic.startswith("solicitud.") or topic.startswith("cotizacion."):
             # Se emitió una solicitud con cotizaciones posibles
             orders.handle(event_name, payload, API_BASE_URL)
 
-        elif channel.startswith("review.creada"):
+        elif topic == "review":
             # El cliente creó una calificación
             reviews.handle(event_name, payload, API_BASE_URL)
 
-        elif channel.startswith("review.actualizada"):
+        elif topic == "review.actualizada":
             # El cliente actualizó una calificación
             reviews.handle(event_name, payload, API_BASE_URL)
         else:
-            logging.info(f"⚠️ Evento no reconocido: {channel}")
+            logging.info(f"⚠️ Evento no reconocido: {topic}")
             return
 
         with conn.cursor() as c:

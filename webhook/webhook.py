@@ -65,9 +65,8 @@ async def webhook(
 
     # Datos del evento publish
     msg_id       = body.get("messageId")
-    source       = body.get("source")
     destination  = body.get("destination", {})
-    channel      = destination.get("channel")
+    topic        = destination.get("topic")
     event_name   = destination.get("eventName")
     subscription = x_subscription_id or body.get("subscriptionId")
 
@@ -77,7 +76,7 @@ async def webhook(
 
     log.info(
         f"✅ Request parsed: messageId={msg_id}, subscriptionId={subscription}, "
-        f"channel={channel}, eventName={event_name}"
+        f"topic={topic}, eventName={event_name}"
     )
 
     # Persistencia idempotente
@@ -89,8 +88,7 @@ async def webhook(
                   id BIGINT AUTO_INCREMENT PRIMARY KEY,
                   message_id VARCHAR(128) NOT NULL UNIQUE,
                   subscription_id VARCHAR(128) NULL,
-                  source VARCHAR(100),
-                  channel VARCHAR(200),
+                  topic VARCHAR(200),
                   event_name VARCHAR(100),
                   payload JSON NOT NULL,
                   received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -100,10 +98,10 @@ async def webhook(
                 )
             """)
             c.execute("""
-                INSERT INTO inbound_events (message_id, subscription_id, source, channel, event_name, payload)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO inbound_events (message_id, subscription_id, topic, event_name, payload)
+                VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE payload = VALUES(payload)
-            """, (msg_id, subscription, source, channel, event_name, json.dumps(body)))
+            """, (msg_id, subscription, topic, event_name, json.dumps(body)))
         log.info(f"📝 Event persisted in DB: messageId={msg_id}")
     except Exception as e:
         log.exception(f"💥 DB insert failed for messageId={msg_id}: {e}")

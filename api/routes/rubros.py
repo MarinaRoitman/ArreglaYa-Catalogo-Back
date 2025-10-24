@@ -31,14 +31,14 @@ def create_rubro(rubro: RubroCreate, current_user: dict = Depends(require_admin_
             rubro_creado = {"id": new_id, "nombre": rubro.nombre}
 
             # --- Publicar evento ---
-            channel = "catalogue.rubro.alta"
+            topic = "catalogue.rubro.alta"
             event_name = "alta_rubro"
             rubro_json = convert_to_json_safe(rubro_creado)
             payload = json.dumps(rubro_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload)
             )
             conn.commit()
 
@@ -61,7 +61,7 @@ def create_rubro(rubro: RubroCreate, current_user: dict = Depends(require_admin_
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=rubro_json
             )
@@ -119,14 +119,14 @@ def update_rubro(rubro_id: int, rubro: RubroUpdate, current_user: dict = Depends
             rubro_actualizado = cursor.fetchone()
 
             # --- Publicar evento ---
-            channel = "catalogue.rubro.modificacion"
+            topic = "catalogue.rubro.modificacion"
             event_name = "modificacion_rubro"
             rubro_json = convert_to_json_safe(rubro_actualizado)
             payload = json.dumps(rubro_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload)
             )
             conn.commit()
 
@@ -149,7 +149,7 @@ def update_rubro(rubro_id: int, rubro: RubroUpdate, current_user: dict = Depends
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=rubro_json
             )
@@ -171,14 +171,14 @@ def delete_rubro(rubro_id: int, current_user: dict = Depends(require_admin_role)
             conn.commit()
 
             # --- Publicar evento ---
-            channel = "catalogue.rubro.baja"
+            topic = "catalogue.rubro.baja"
             event_name = "baja_rubro"
             rubro_json = convert_to_json_safe(rubro)
             payload = json.dumps(rubro_json, ensure_ascii=False)
 
             cursor.execute(
-                "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-                (channel, event_name, payload)
+                "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+                (topic, event_name, payload)
             )
             conn.commit()
 
@@ -201,7 +201,7 @@ def delete_rubro(rubro_id: int, current_user: dict = Depends(require_admin_role)
             publish_event(
                 messageId=str(event_id),
                 timestamp=timestamp,
-                channel=channel,
+                topic=topic,
                 eventName=event_name,
                 payload=rubro_json
             )

@@ -83,12 +83,12 @@ def register(prestador: PrestadorCreate):
         payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
         # Publicar evento de alta
-        channel = "catalogue.prestador.alta"
+        topic = "catalogue.prestador.alta"
         event_name = "alta_prestador"
 
         cursor.execute(
-            "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-            (channel, event_name, payload_str)
+            "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+            (topic, event_name, payload_str)
         )
         conn.commit()
 
@@ -101,7 +101,7 @@ def register(prestador: PrestadorCreate):
         publish_event(
             messageId=str(event_id),
             timestamp=timestamp,
-            channel=channel,
+            topic=topic,
             eventName=event_name,
             payload=prestador_json
         )

@@ -10,15 +10,15 @@ def handle(event_name, payload, API_BASE_URL, headers):
     if event_name == "user_created":
         logging.info("👤 Alta de usuario recibida")
         logging.info("headers: ", headers)
-        response = requests.post(f"{API_BASE_URL}/usuarios", json=data, headers=headers) # modificar para que apunte a la url correcta (local o prod)
+        response = requests.post(f"{API_BASE_URL}/usuarios", json=data, headers=headers)
         logging.info(f"Respuesta del API al crear usuario: {response.status_code} - {response.text}")
     elif event_name == "user_updated":
-        logging.info("✏️ Actualización de usuario")
-        response = requests.patch(f"{API_BASE_URL}/usuarios", json=data, headers=headers)
+        logging.info("✏️ Actualización de usuario") #Ver cómo obtener el id?
+        response = requests.patch(f"{API_BASE_URL}/usuarios/{data.get('id')}", json=data, headers=headers)
         logging.info(f"Respuesta del API al actualizar usuario: {response.status_code} - {response.text}")
     elif event_name == "user_rejected":
         logging.info("🗑️ Baja de usuario")
-        response = requests.delete(f"{API_BASE_URL}/usuarios", json=data, headers=headers)
+        response = requests.delete(f"{API_BASE_URL}/usuarios/{data.get('id')}", json=data, headers=headers)
         logging.info(f"Respuesta del API al eliminar usuario: {response.status_code} - {response.text}")
     else:
         logging.info(f"Evento de usuario no manejado: {event_name}")
