@@ -29,9 +29,10 @@ app.include_router(admin.router)
 #CORS
 
 FRONT_PROD = "https://desarrollo2-catalogos.online"
+FRONT_DEV = "https://frontdev.desarrollo2-catalogos.online"
 LOCAL_3000 = "http://localhost:3000" 
 
-ALLOWED_ORIGINS = [FRONT_PROD, LOCAL_3000]
+ALLOWED_ORIGINS = [FRONT_PROD, LOCAL_3000, FRONT_DEV]
 
 app.add_middleware(
     CORSMiddleware,
