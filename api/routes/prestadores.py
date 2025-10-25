@@ -257,7 +257,7 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -326,7 +326,7 @@ def delete_prestador(prestador_id: int, current_user: dict = Depends(require_adm
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -411,7 +411,7 @@ def add_zona_to_prestador(
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -488,7 +488,7 @@ def remove_zona_from_prestador(
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -612,7 +612,7 @@ def add_habilidad_to_prestador(
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -690,7 +690,7 @@ def remove_habilidad_from_prestador(
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,

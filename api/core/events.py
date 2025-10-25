@@ -29,12 +29,14 @@ def publish_event(message_id: str, timestamp: str, topic: str, event_name: str, 
         "payload": payload
     }
 
+    print(f"➡️ URL: {CORE_URL}")
+    print(f"➡️ Headers: {headers}")
+    print(f"➡️ Body JSON:\n{json.dumps(body, indent=4, ensure_ascii=False)}")
+        
     response = requests.post(CORE_URL, headers=headers, json=body)
-
-    # Log opcional (para debugging local)
-    # print(f"➡️ Evento publicado al Core ({response.status_code})")
-    # print(json.dumps(body, indent=4, ensure_ascii=False))
-    # if response.status_code != 200:
-    #    print(f"❌ Error: {response.text}")
+    
+    print(f"Respuesta del corehub====")
+    print(f"⬅️ Código HTTP: {response.status_code}")
+    print(f"⬅️ Texto completo:\n{response.text}")
 
     return response

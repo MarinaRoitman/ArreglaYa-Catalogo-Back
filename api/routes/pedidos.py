@@ -171,7 +171,7 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
             # Para evitar el loop infinito
             #if payload.get("source") == "catalogue": # ver como modificarlo
             publish_event( 
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -238,7 +238,7 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
             
             # Publicar evento en CoreHub
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,

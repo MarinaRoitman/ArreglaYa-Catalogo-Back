@@ -59,7 +59,7 @@ def create_rubro(rubro: RubroCreate, current_user: dict = Depends(require_admin_
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -147,7 +147,7 @@ def update_rubro(rubro_id: int, rubro: RubroUpdate, current_user: dict = Depends
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -199,7 +199,7 @@ def delete_rubro(rubro_id: int, current_user: dict = Depends(require_admin_role)
                 timestamp = datetime.now(timezone.utc).isoformat()
 
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,

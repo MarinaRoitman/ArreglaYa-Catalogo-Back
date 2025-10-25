@@ -87,12 +87,12 @@ def register(prestador: PrestadorCreate):
         payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
         # Publicar evento de alta
-        channel = "prestador"
+        topic = "prestador"
         event_name = "alta"
 
         cursor.execute(
-            "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
-            (channel, event_name, payload_str)
+            "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
+            (topic, event_name, payload_str)
         )
         conn.commit()
 
@@ -103,9 +103,9 @@ def register(prestador: PrestadorCreate):
         timestamp = datetime.now(timezone.utc).isoformat()
 
         publish_event(
-            messageId=str(event_id),
+            message_id=str(event_id),
             timestamp=timestamp,
-            channel=channel,
+            topic=topic,
             event_name=event_name,
             payload=prestador_json
         )
@@ -148,7 +148,7 @@ def login(credentials: LoginRequest = Body(...)):
         internal_role = None
         if external_role == "prestador":
             internal_role = "prestador"
-        elif external_role == "admin":
+        elif "admin" in external_role:
             internal_role = "admin"
         
         if internal_role is None:

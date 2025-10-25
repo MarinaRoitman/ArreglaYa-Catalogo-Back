@@ -43,7 +43,7 @@ def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_rol
 
             # Publicar evento en CoreHub
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -127,7 +127,7 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
 
             # Publicar evento en CoreHub
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
@@ -177,7 +177,7 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
 
             # Publicar evento en CoreHub
             publish_event(
-                messageId=str(event_id),
+                message_id=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
                 event_name=event_name,
