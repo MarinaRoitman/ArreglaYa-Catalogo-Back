@@ -3,7 +3,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.calificacion import CalificacionCreate, CalificacionUpdate, CalificacionOut
-from core.security import  require_admin_role, require_admin_or_prestador_role
+from core.security import  require_internal_or_admin, require_admin_or_prestador_role
 
 router = APIRouter(prefix="/calificaciones", tags=["Calificaciones"])
 
@@ -50,7 +50,7 @@ def get_calificacion(calificacion_id: int, current_user: dict = Depends(require_
 
 # Crear una calificación
 @router.post("/", response_model=CalificacionOut)
-def create_calificacion(calificacion: CalificacionCreate, current_user: dict = Depends(require_admin_role)):
+def create_calificacion(calificacion: CalificacionCreate, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             # Validar existencia de prestador
@@ -120,7 +120,7 @@ def update_calificacion(calificacion_id: int, calificacion: CalificacionUpdate, 
 
 # Eliminar una calificación
 @router.delete("/{calificacion_id}")
-def delete_calificacion(calificacion_id: int, current_user: dict = Depends(require_admin_role)):
+def delete_calificacion(calificacion_id: int, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("DELETE FROM calificacion WHERE id=%s", (calificacion_id,))
