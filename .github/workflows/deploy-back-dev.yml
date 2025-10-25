@@ -5,6 +5,8 @@ on:
     branches: [ "dev" ]
     paths:
       - 'api/**'
+      - 'worker/**'
+      - 'webhook/**'
   workflow_dispatch: {}
 
 concurrency:
@@ -19,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # === Tests gate (optional) ===
+      # ===== Optional tests gate =====
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -38,10 +40,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r api/requirements.txt
           pip install -r api/requirements_test.txt
-
       # - name: Run unit tests
-      #  run: pytest -q
-      # === end tests gate ===
+      #   run: pytest -q
+      # ===== end tests gate =====
 
       - name: Debug secrets (masked)
         shell: bash
@@ -55,7 +56,8 @@ jobs:
           echo "EC2_SSH_PASSWORD length: ${LEN}"
           echo "EC2_SSH_PASSWORD sha256 (first 12): ${HASH}"
 
-      - name: Ensure target dir (DEV)
+      # Make sure dev dirs exist and are writable by 'ci'
+      - name: Ensure DEV dirs on EC2 (writable)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -63,22 +65,97 @@ jobs:
           password: ${{ secrets.EC2_SSH_PASSWORD }}
           script: |
             set -e
-            mkdir -p /home/ubuntu/catalogo/api-dev
+            sudo mkdir -p /home/ubuntu/catalogo/api-dev /home/ubuntu/catalogo/worker-dev /home/ubuntu/catalogo/webhook-dev
+            sudo chown -R ci:ci /home/ubuntu/catalogo/api-dev /home/ubuntu/catalogo/worker-dev /home/ubuntu/catalogo/webhook-dev
+            # sanity write check
+            touch /home/ubuntu/catalogo/api-dev/.write_test && rm -f /home/ubuntu/catalogo/api-dev/.write_test
 
-      - name: Copy backend code to EC2 (DEV)
+      - name: List local files to copy
+        run: |
+          echo "== local api =="
+          ls -la ./api | head -n 30 || true
+          echo "== local worker =="
+          ls -la ./worker | head -n 30 || true
+          echo "== local webhook =="
+          ls -la ./webhook | head -n 30 || true
+
+      # ===== Copy API -> api-dev =====
+      - name: Copy API code -> api-dev
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ci
           password: ${{ secrets.EC2_SSH_PASSWORD }}
-          source: "api/**"
-          target: "/home/ubuntu/catalogo/api-dev"
+          source: "./api/**"
+          target: "/home/ubuntu/catalogo/api-dev/"
           strip_components: 1
           overwrite: true
           rm: true
           timeout: 3m
+          debug: true
 
-      - name: Rebuild + up api-dev (single compose file)
+      - name: Verify api-dev on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          script: |
+            echo "== api-dev contents =="
+            ls -la /home/ubuntu/catalogo/api-dev | head -n 40 || true
+
+      # ===== Copy Worker -> worker-dev =====
+      - name: Copy Worker code -> worker-dev
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          source: "./worker/**"
+          target: "/home/ubuntu/catalogo/worker-dev/"
+          strip_components: 1
+          overwrite: true
+          rm: true
+          timeout: 3m
+          debug: true
+
+      - name: Verify worker-dev on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          script: |
+            echo "== worker-dev contents =="
+            ls -la /home/ubuntu/catalogo/worker-dev | head -n 40 || true
+
+      # ===== Copy Webhook -> webhook-dev =====
+      - name: Copy Webhook code -> webhook-dev
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          source: "./webhook/**"
+          target: "/home/ubuntu/catalogo/webhook-dev/"
+          strip_components: 1
+          overwrite: true
+          rm: true
+          timeout: 3m
+          debug: true
+
+      - name: Verify webhook-dev on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ci
+          password: ${{ secrets.EC2_SSH_PASSWORD }}
+          script: |
+            echo "== webhook-dev contents =="
+            ls -la /home/ubuntu/catalogo/webhook-dev | head -n 40 || true
+
+      # ===== Build & Up ONLY dev services =====
+      - name: Rebuild + up api-dev, worker-dev, webhook-dev
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -86,13 +163,10 @@ jobs:
           password: ${{ secrets.EC2_SSH_PASSWORD }}
           script: |
             set -e
-            # Build and start api-dev using ONLY the main compose file
-            sudo docker compose \
-              -f /home/ubuntu/catalogo/docker-compose.yml \
-              build api-dev
-            sudo docker compose \
-              -f /home/ubuntu/catalogo/docker-compose.yml \
-              up -d api-dev
-            sudo docker compose \
-              -f /home/ubuntu/catalogo/docker-compose.yml \
-              logs --tail=50 api-dev
+            cd /home/ubuntu/catalogo
+            echo "== docker compose build (dev) =="
+            sudo docker compose -f docker-compose.yml build api-dev worker-dev webhook-dev
+            echo "== docker compose up (dev) =="
+            sudo docker compose -f docker-compose.yml up -d api-dev worker-dev webhook-dev
+            echo "== logs tail (dev) =="
+            sudo docker compose -f docker-compose.yml logs --tail=50 api-dev worker-dev webhook-dev || true
