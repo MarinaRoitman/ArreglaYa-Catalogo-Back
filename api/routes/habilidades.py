@@ -31,7 +31,7 @@ def create_habilidad(habilidad: HabilidadCreate):
 
             # Registrar el evento localmente
             topic = "habilidad"
-            event_name = "created"
+            event_name = "alta"
             payload_str = json.dumps(habilidad_creada, ensure_ascii=False)
 
             cursor.execute(
@@ -126,8 +126,8 @@ def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate, current_user
             updated = cursor.fetchone()
 
             # Publicar evento de modificación (mismo patrón que zonas)
-            topic = "catalogue.habilidad.modificacion"
-            event_name = "modificacion_habilidad"
+            topic = "habilidad"
+            event_name = "modificacion"
             payload = json.dumps(updated, ensure_ascii=False)
             cursor.execute(
                 "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
@@ -188,8 +188,8 @@ def delete_habilidad(habilidad_id: int, current_user: dict = Depends(require_adm
             registro = cursor.fetchone()
 
             # Publicar evento de baja
-            topic = "catalogue.habilidad.baja"
-            event_name = "baja_habilidad"
+            topic = "habilidad"
+            event_name = "baja"
             payload = json.dumps(registro if registro else {"id": habilidad_id}, ensure_ascii=False)
             cursor.execute(
                 "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
@@ -261,7 +261,7 @@ def reactivate_habilidad(habilidad_id: int, current_user: dict = Depends(require
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=registro if registro else {"id": habilidad_id},
             )
 

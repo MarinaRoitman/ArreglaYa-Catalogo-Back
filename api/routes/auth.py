@@ -9,10 +9,14 @@ import json
 from datetime import datetime, timezone
 from core.events import publish_event
 from passlib.context import CryptContext
+import httpx
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+# Usar puerto 8081 para pegarle a dev, o 8080 para prod
+EXTERNAL_LOGIN_URL = "http://dev.desarrollo2-usuarios.shop:8081/api/users/login"
 
 def _convert_to_json_safe(obj):
     if isinstance(obj, dict):
@@ -83,12 +87,12 @@ def register(prestador: PrestadorCreate):
         payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
         # Publicar evento de alta
-        topic = "catalogue.prestador.alta"
-        event_name = "alta_prestador"
+        channel = "prestador"
+        event_name = "alta"
 
         cursor.execute(
-            "INSERT INTO eventos_publicados (topic, event_name, payload) VALUES (%s, %s, %s)",
-            (topic, event_name, payload_str)
+            "INSERT INTO eventos_publicados (channel, event_name, payload) VALUES (%s, %s, %s)",
+            (channel, event_name, payload_str)
         )
         conn.commit()
 
@@ -101,8 +105,8 @@ def register(prestador: PrestadorCreate):
         publish_event(
             messageId=str(event_id),
             timestamp=timestamp,
-            topic=topic,
-            eventName=event_name,
+            channel=channel,
+            event_name=event_name,
             payload=prestador_json
         )
 
@@ -111,31 +115,62 @@ def register(prestador: PrestadorCreate):
 
 @router.post("/login")
 def login(credentials: LoginRequest = Body(...)):
-    with get_connection() as (cursor, conn):
-        # Buscar en prestador
-        cursor.execute("SELECT * FROM prestador WHERE email = %s AND activo = 1", (credentials.email,))
-        user = cursor.fetchone()
-        if user and verify_password(credentials.password, user["password"]):
-            access_token = create_access_token({"sub": str(user["id"]), "role": "prestador"})
-            return {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "rol": "prestador"
-            }
+    # Preparamos el body para la solicitud externa
+    login_data = credentials.model_dump()
 
-        # Buscar en admin
-        cursor.execute("SELECT * FROM admin WHERE email = %s AND activo = 1", (credentials.email,))
-        admin = cursor.fetchone()
+    try:
+        # Hacemos la llamada al servicio externo
+        with httpx.Client() as client:
+            response = client.post(EXTERNAL_LOGIN_URL, json=login_data)
+        
+        # Manejar la respuesta del servicio externo
+        if response.status_code == 401:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+        
+        # Lanza un error si la solicitud externa falló por otra razón
+        response.raise_for_status() 
 
-        cursor.close()
-        conn.close()
+        # Si llegamos acá, el login externo fue exitoso
+        external_data = response.json()
+        
+        user_info = external_data.get("userInfo")
+        if not user_info:
+            raise HTTPException(status_code=500, detail="Respuesta de login externo incompleta: falta 'userInfo'")
 
-        if admin and verify_password(credentials.password, admin["password"]):
-            access_token = create_access_token({"sub": str(admin["email"]), "role": "admin"})
-            return {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "rol": "admin"
-            }
+        # Extraer datos y NORMALIZAR el rol        
+        external_role = user_info.get("role", "").lower() # "prestador" o "admin"
+        user_id = user_info.get("id")
 
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+        if not user_id:
+             raise HTTPException(status_code=500, detail="Respuesta de login externo incompleta: falta 'id' en 'userInfo'")
+        
+        # Mapeo de roles
+        internal_role = None
+        if external_role == "prestador":
+            internal_role = "prestador"
+        elif external_role == "admin":
+            internal_role = "admin"
+        
+        if internal_role is None:
+             raise HTTPException(status_code=403, detail="El rol de usuario no es compatible con esta aplicación")
+
+        # 6. Crear token interno
+        data_to_encode = {
+            "sub": str(user_id),
+            "role": internal_role 
+        }
+        internal_access_token = create_access_token(data=data_to_encode)
+
+        # El frontend usará este internal_access_token para todas las peticiones
+        return {
+            "access_token": internal_access_token,
+            "token_type": "bearer",
+            "rol": internal_role
+        }
+
+    except httpx.RequestError as exc:
+        # Error de conexión con el servicio de login
+        raise HTTPException(status_code=503, detail=f"Error al contactar el servicio de autenticación: {exc}")
+    except httpx.HTTPStatusError as exc:
+        # El servicio de login devolvió un error 4xx o 5xx (distinto de 401)
+        raise HTTPException(status_code=502, detail=f"Error del servicio de autenticación: {exc.response.text}")

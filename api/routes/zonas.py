@@ -20,8 +20,8 @@ def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_rol
             zona_creada = {"id": new_id, "nombre": zona.nombre}
 
             # Registrar evento en la tabla
-            topic = "catalogue.zona.alta"
-            event_name = "alta_zona"
+            topic = "zona"
+            event_name = "alta"
             payload = json.dumps(zona_creada, ensure_ascii=False)
 
             insert_event_query = """
@@ -46,7 +46,7 @@ def create_zona(zona: ZonaCreate, current_user: dict = Depends(require_admin_rol
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=zona_creada
             )
 
@@ -104,8 +104,8 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
             zona_modificada = cursor.fetchone()
 
             # Registrar evento en la tabla
-            topic = "catalogue.zona.modificacion"
-            event_name = "modificacion_zona"
+            topic = "zona"
+            event_name = "modificacion"
             payload = json.dumps(zona_modificada, ensure_ascii=False)
 
             insert_event_query = """
@@ -130,7 +130,7 @@ def update_zona(zona_id: int, zona: ZonaUpdate, current_user: dict = Depends(req
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=zona_modificada
             )
 
@@ -154,8 +154,8 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
                 raise HTTPException(status_code=404, detail="Zona no encontrada")
 
             # Registrar evento en la tabla
-            topic = "catalogue.zona.baja"
-            event_name = "baja_zona"
+            topic = "zona"
+            event_name = "baja"
             payload = json.dumps({"id": zona_id, "nombre": nombre}, ensure_ascii=False)
 
             insert_event_query = """
@@ -180,7 +180,7 @@ def delete_zona(zona_id: int, current_user: dict = Depends(require_admin_role)):
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload={"id": zona_id, "nombre": nombre}
             )
 

@@ -31,8 +31,8 @@ def create_rubro(rubro: RubroCreate, current_user: dict = Depends(require_admin_
             rubro_creado = {"id": new_id, "nombre": rubro.nombre}
 
             # --- Publicar evento ---
-            topic = "catalogue.rubro.alta"
-            event_name = "alta_rubro"
+            topic = "rubro"
+            event_name = "alta"
             rubro_json = convert_to_json_safe(rubro_creado)
             payload = json.dumps(rubro_json, ensure_ascii=False)
 
@@ -62,7 +62,7 @@ def create_rubro(rubro: RubroCreate, current_user: dict = Depends(require_admin_
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=rubro_json
             )
 
@@ -119,8 +119,8 @@ def update_rubro(rubro_id: int, rubro: RubroUpdate, current_user: dict = Depends
             rubro_actualizado = cursor.fetchone()
 
             # --- Publicar evento ---
-            topic = "catalogue.rubro.modificacion"
-            event_name = "modificacion_rubro"
+            topic = "rubro"
+            event_name = "modificacion"
             rubro_json = convert_to_json_safe(rubro_actualizado)
             payload = json.dumps(rubro_json, ensure_ascii=False)
 
@@ -150,7 +150,7 @@ def update_rubro(rubro_id: int, rubro: RubroUpdate, current_user: dict = Depends
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=rubro_json
             )
 
@@ -171,8 +171,8 @@ def delete_rubro(rubro_id: int, current_user: dict = Depends(require_admin_role)
             conn.commit()
 
             # --- Publicar evento ---
-            topic = "catalogue.rubro.baja"
-            event_name = "baja_rubro"
+            topic = "rubro"
+            event_name = "baja"
             rubro_json = convert_to_json_safe(rubro)
             payload = json.dumps(rubro_json, ensure_ascii=False)
 
@@ -202,7 +202,7 @@ def delete_rubro(rubro_id: int, current_user: dict = Depends(require_admin_role)
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=rubro_json
             )
 

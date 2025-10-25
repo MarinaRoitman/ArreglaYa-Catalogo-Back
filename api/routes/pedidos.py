@@ -130,13 +130,13 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
             # --- Detectar tipo de evento según el nuevo estado ---
             estado = pedido.model_dump(exclude_unset=True).get("estado")
             if estado == "aprobado_por_prestador":
-                topic = "catalogue.pedidos.cotizacion_enviada"
+                topic = "pedido"
                 event_name = "cotizacion_enviada"
             elif estado == "finalizado":
-                topic = "catalogue.pedidos.finalizado"
+                topic = "pedido"
                 event_name = "pedido_finalizado"
             elif estado == "cancelado":
-                topic = "catalogue.pedidos.cancelado"
+                topic = "pedido"
                 event_name = "pedido_cancelado"
             else:
                 return pedido_actualizado
@@ -174,7 +174,7 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=pedido_json
             )
 
@@ -205,7 +205,7 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
             pedido_actualizado = cursor.fetchone()
             
             # Datos del evento
-            topic = "catalogue.pedidos.cancelado"
+            topic = "pedido"
             event_name = "pedido_cancelado"
 
             pedido_json_safe = convert_to_json_safe(pedido_actualizado)
@@ -241,7 +241,7 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
                 messageId=str(event_id),
                 timestamp=timestamp,
                 topic=topic,
-                eventName=event_name,
+                event_name=event_name,
                 payload=pedido_json_safe  # usar el que ya es JSON-safe
             )
             

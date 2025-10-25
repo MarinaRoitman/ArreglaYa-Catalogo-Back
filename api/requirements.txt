@@ -9,3 +9,4 @@ pymysql
 passlib
 requests
 bcrypt==4.3.0
+httpx
