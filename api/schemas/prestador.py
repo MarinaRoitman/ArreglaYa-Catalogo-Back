@@ -15,7 +15,8 @@ class PrestadorBase(UsuarioBase):
     departamento: Optional[str] = None
 
 class PrestadorCreate(PrestadorBase):
-    password: str
+    password: Optional[str] = None
+    id_prestador: Optional[int] = None
 
 class PrestadorUpdate(BaseModel):
     nombre: Optional[str] = None

@@ -4,7 +4,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
-from core.security import get_password_hash, require_admin_role, require_prestador_role, require_admin_or_prestador_role
+from core.security import get_password_hash, require_admin_role, require_prestador_role, require_admin_or_prestador_role, require_internal_or_admin, require_internal_admin_or_prestador
 from decimal import Decimal
 import json
 from datetime import datetime, timezone
@@ -46,7 +46,7 @@ def list_prestadores(
     dni: Optional[str] = None,
     activo: Optional[bool] = None,
     id_prestador: Optional[int] = None,
-    current_user: dict = Depends(require_admin_role)
+    current_user: dict = Depends(require_internal_or_admin)
 ):
     try:        
         with get_connection() as (cursor, conn):
@@ -160,7 +160,7 @@ def get_prestador(prestador_id: int, current_user: dict = Depends(require_admin_
 
 # Actualizar un prestador
 @router.patch("/{prestador_id}", response_model=PrestadorOut)
-def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user: dict = Depends(require_admin_or_prestador_role)):
+def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user: dict = Depends(require_internal_admin_or_prestador)):
     try:        
         with get_connection() as (cursor, conn):
 
@@ -274,7 +274,7 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
 
 # Eliminar un prestador
 @router.delete("/{prestador_id}")
-def delete_prestador(prestador_id: int, current_user: dict = Depends(require_admin_or_prestador_role)):
+def delete_prestador(prestador_id: int, current_user: dict = Depends(require_internal_admin_or_prestador)):
     try:
         with get_connection() as (cursor, conn):
             # Baja lógica: actualizar campo activo a False
@@ -740,5 +740,68 @@ def get_prestadores_by_habilidad(
                 """, (prestador["id"],))
                 prestador["habilidades"] = cursor.fetchall()
             return prestadores
+    except Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# Crear un nuevo prestador
+@router.post("/", response_model=PrestadorOut, status_code=201, summary="Crear un nuevo prestador")
+def create_prestador(prestador: PrestadorCreate, current_user: dict = Depends(require_internal_or_admin)):
+    try:
+        with get_connection() as (cursor, conn):
+            
+            cursor.execute(
+                "SELECT id FROM prestador WHERE email = %s OR dni = %s",
+                (prestador.email, prestador.dni)
+            )
+            if cursor.fetchone():
+                raise HTTPException(status_code=409, detail="Email o DNI ya registrado")
+
+            if prestador.foto:
+                query = """
+                    INSERT INTO prestador (
+                        nombre, apellido, email, password, telefono, dni,
+                        foto, estado, ciudad, calle, numero, piso, departamento,
+                        activo, id_prestador
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                values = (
+                    prestador.nombre, prestador.apellido, prestador.email,
+                    prestador.password, prestador.telefono, prestador.dni,
+                    prestador.foto,
+                    prestador.estado, prestador.ciudad, prestador.calle,
+                    prestador.numero, prestador.piso, prestador.departamento,
+                    True, # Los prestadores se crean activos por defecto
+                    prestador.id_prestador
+                )
+            else:
+                query = """
+                    INSERT INTO prestador (
+                        nombre, apellido, email, password, telefono, dni,
+                        estado, ciudad, calle, numero, piso, departamento,
+                        activo, id_prestador
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                values = (
+                    prestador.nombre, prestador.apellido, prestador.email,
+                    prestador.password, prestador.telefono, prestador.dni,
+                    prestador.estado, prestador.ciudad, prestador.calle,
+                    prestador.numero, prestador.piso, prestador.departamento,
+                    True, # Los prestadores se crean activos por defecto
+                    prestador.id_prestador
+                )
+            
+            cursor.execute(query, values)
+            conn.commit()
+            new_id = cursor.lastrowid
+
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (new_id,))
+            created_prestador = cursor.fetchone()
+            if not created_prestador:
+                raise HTTPException(status_code=500, detail="Error al recuperar el prestador creado")
+            
+            return created_prestador
+
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))

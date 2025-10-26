@@ -68,7 +68,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
 
 def require_prestador_role(current_user: dict = Depends(get_current_user_swagger)):
-    if current_user.get("rol") != "prestador":
+    if current_user.get("role") != "prestador":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para acceder a este recurso"
@@ -120,3 +120,20 @@ def require_admin_or_prestador_role(current_user: dict = Depends(get_current_use
             detail="Acceso permitido solo para administradores o prestadores"
         )
     return current_user
+
+def require_internal_admin_or_prestador(
+    x_internal_token: str = Header(None),
+    authorization: str = Header(None)
+):
+    if x_internal_token and x_internal_token == INTERNAL_API_TOKEN:
+        return {"role": "internal"}
+
+    user = get_current_user_optional(authorization)
+    
+    if user and user.get("role") in ["admin", "prestador"]:
+        return user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Acceso permitido solo para administradores, prestadores o con token interno"
+    )

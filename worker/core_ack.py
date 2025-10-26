@@ -9,7 +9,7 @@ def send_ack(msg_id, subscription_id):
         return
 
     url = CORE_ACK_URL.format(msgId=msg_id)
-    payload = {"msgId": msg_id, "subscriptionId": subscription_id}
+    payload = {"msgId": msg_id}
     headers = {"X-API-KEY": CORE_API_KEY, "Content-Type": "application/json"}
 
     try:
