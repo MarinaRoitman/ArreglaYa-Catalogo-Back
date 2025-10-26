@@ -36,7 +36,7 @@ class PrestadorUpdate(BaseModel):
     departamento: Optional[str] = None
 
 class PrestadorOut(BaseModel):
-    id: int
+    id: Optional[int] = None
     nombre: str
     apellido: str
     email: str
@@ -52,3 +52,4 @@ class PrestadorOut(BaseModel):
     numero: str
     piso: Optional[str] = None
     departamento: Optional[str] = None
+    id_prestador: Optional[int] = None

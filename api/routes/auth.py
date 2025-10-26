@@ -37,55 +37,19 @@ def _row_to_dict(cursor, row):
     # cursor.description tiene (name, type_code, ...) por columna
     return {desc[0]: row[idx] for idx, desc in enumerate(cursor.description)}
 
-# REGISTER
 @router.post("/register", response_model=PrestadorOut)
 def register(prestador: PrestadorCreate):
+    row_dict = prestador.model_dump()
+    
+    row_dict.setdefault("habilidades", [])
+    row_dict.setdefault("zonas", [])
+    row_dict.setdefault("activo", True) # Asumir True para el evento de alta
+    row_dict.setdefault("foto", None)  # Asumir None
+
+    prestador_json = _convert_to_json_safe(row_dict)
+    payload_str = json.dumps(prestador_json, ensure_ascii=False)
+
     with get_connection() as (cursor, conn):
-        # Verificar si ya existe email o dni
-        cursor.execute("SELECT * FROM prestador WHERE (email = %s OR dni = %s) AND activo = 1", (prestador.email, prestador.dni))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Email o DNI ya registrado")
-
-        hashed_password = get_password_hash(prestador.password)
-
-        cursor.execute(
-            """
-            INSERT INTO prestador (
-                nombre, apellido, email, password, telefono, dni,
-                estado, ciudad, calle, numero, piso, departamento
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                prestador.nombre, prestador.apellido, prestador.email,
-                hashed_password, prestador.telefono, prestador.dni,
-                prestador.estado, prestador.ciudad, prestador.calle,
-                prestador.numero, prestador.piso, prestador.departamento
-            )
-        )
-        conn.commit()
-        user_id = cursor.lastrowid
-
-        # Recuperar usuario
-        cursor.execute(
-            """
-            SELECT id, nombre, apellido, email, telefono, dni, activo, foto,
-                   estado, ciudad, calle, numero, piso, departamento
-            FROM prestador WHERE id = %s
-            """,
-            (user_id,)
-        )
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=500, detail="Error al recuperar prestador creado")
-
-        row_dict = _row_to_dict(cursor, row)
-        row_dict.setdefault("habilidades", [])
-        row_dict.setdefault("zonas", [])
-
-        prestador_json = _convert_to_json_safe(row_dict)
-        payload_str = json.dumps(prestador_json, ensure_ascii=False)
-
         # Publicar evento de alta
         topic = "prestador"
         event_name = "alta"
@@ -96,11 +60,21 @@ def register(prestador: PrestadorCreate):
         )
         conn.commit()
 
-        # Enviar evento al Core
+        # Usar el ID del evento como el ID del prestador para la respuesta
         event_id = cursor.lastrowid
+
+        # Enviar evento al Core
         cursor.execute("SELECT created_at FROM eventos_publicados WHERE id = %s", (event_id,))
-        created_at_value = cursor.fetchone()
-        timestamp = datetime.now(timezone.utc).isoformat()
+        event_row = cursor.fetchone()
+        
+        timestamp = None
+        if event_row:
+            created_at_value = event_row[0] if isinstance(event_row, tuple) else event_row.get('created_at')
+            if isinstance(created_at_value, datetime):
+                timestamp = created_at_value.replace(tzinfo=timezone.utc).isoformat()
+
+        if not timestamp:
+            timestamp = datetime.now(timezone.utc).isoformat()
 
         publish_event(
             message_id=str(event_id),

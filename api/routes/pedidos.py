@@ -59,6 +59,7 @@ def list_pedidos(
     id_habilidad: Optional[int] = None,
     id_zona: Optional[int] = None,
     es_critico: Optional[bool] = None,
+    id_pedido: Optional[int] = None,
     current_user: dict = Depends(require_admin_or_prestador_role)
 ):
     try:
@@ -84,6 +85,9 @@ def list_pedidos(
             if es_critico is not None:
                 query += " AND es_critico = %s"
                 params.append(es_critico)
+            if id_pedido:
+                query += " AND id_pedido = %s"
+                params.append(id_pedido)
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
     except Error as e:
@@ -108,6 +112,7 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
     try:
         with get_connection() as (cursor, conn):
             fields, values = [], []
+            pedido_data = pedido.model_dump(exclude_unset=True)
             for key, value in pedido.dict(exclude_unset=True).items():
                 fields.append(f"{key}=%s")
                 values.append(value)
@@ -124,11 +129,25 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
-            cursor.execute("SELECT * FROM pedido WHERE id = %s", (pedido_id,))
+            query_select = """
+                SELECT 
+                    p.estado, p.descripcion, p.tarifa, p.fecha_creacion, p.fecha_ultima_actualizacion, p.fecha, p.id_habilidad, p.es_critico, p.id_zona, p.id_pedido,
+                    u.id_usuario AS id_usuario,
+                    pr.id_prestador AS id_prestador
+                FROM 
+                    pedido p
+                INNER JOIN 
+                    usuario u ON p.id_usuario = u.id
+                INNER JOIN 
+                    prestador pr ON p.id_prestador = pr.id
+                WHERE 
+                    p.id = %s
+                """
+            cursor.execute(query_select, (pedido_id,))
             pedido_actualizado = cursor.fetchone()
             
             # --- Detectar tipo de evento según el nuevo estado ---
-            estado = pedido.model_dump(exclude_unset=True).get("estado")
+            estado = pedido_data.get("estado")
             if estado == "aprobado_por_prestador":
                 topic = "pedido"
                 event_name = "cotizacion_enviada"
@@ -140,10 +159,12 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
                 event_name = "pedido_cancelado"
             else:
                 return pedido_actualizado
-                  # no publicamos evento si no aplica
+                # no publicamos evento si no aplica
+            
+            payload_dict = pedido_actualizado.copy()
 
             # --- Publicar evento ---
-            pedido_json = convert_to_json_safe(pedido_actualizado)
+            pedido_json = convert_to_json_safe(payload_dict)
             payload = json.dumps(pedido_json, ensure_ascii=False)
 
             cursor.execute(
@@ -201,7 +222,21 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_
             conn.commit()
             
             # Obtener el pedido actualizado
-            cursor.execute("SELECT * FROM pedido WHERE id = %s", (pedido_id,))
+            query_select = """
+                SELECT 
+                    p.estado, p.descripcion, p.tarifa, p.fecha_creacion, p.fecha_ultima_actualizacion, p.fecha, p.id_habilidad, p.es_critico, p.id_zona, p.id_pedido,
+                    u.id_usuario AS id_usuario,
+                    pr.id_prestador AS id_prestador
+                FROM 
+                    pedido p
+                INNER JOIN 
+                    usuario u ON p.id_usuario = u.id
+                INNER JOIN 
+                    prestador pr ON p.id_prestador = pr.id
+                WHERE 
+                    p.id = %s
+                """
+            cursor.execute(query_select, (pedido_id,))
             pedido_actualizado = cursor.fetchone()
             
             # Datos del evento

@@ -14,13 +14,14 @@ class PedidoBase(BaseModel):
     estado: EstadoPedido = EstadoPedido.pendiente
     tarifa: Optional[float] = None
     descripcion: Optional[str] = None
-    id_usuario: int
+    id_usuario: Optional[int] = None
     id_prestador: Optional[int] = None
     fecha: Optional[datetime] = None
     id_habilidad: Optional[int] = None
     id_pedido: Optional[int] = None
     es_critico: Optional[bool] = False
     id_zona: Optional[int] = None
+    
 
 class PedidoCreate(PedidoBase):
     pass
@@ -36,10 +37,11 @@ class PedidoUpdate(BaseModel):
     id_zona: Optional[int] = None
     
 class PedidoOut(PedidoBase):
-    id: int
+    id: Optional[int] = None
     fecha_creacion: datetime
     fecha_ultima_actualizacion: datetime
     fecha: Optional[datetime] = None
     id_pedido: Optional[int] = None
     es_critico: bool
+    
     

@@ -45,6 +45,7 @@ def list_prestadores(
     id_zona: Optional[int] = None,
     dni: Optional[str] = None,
     activo: Optional[bool] = None,
+    id_prestador: Optional[int] = None,
     current_user: dict = Depends(require_admin_role)
 ):
     try:        
@@ -91,6 +92,9 @@ def list_prestadores(
             if departamento:
                 query += " AND departamento LIKE %s"
                 params.append(f"%{departamento}%")
+            if id_prestador:
+                query += " AND id_prestador = %s"
+                params.append(id_prestador)
                 
 
             cursor.execute(query, tuple(params))
