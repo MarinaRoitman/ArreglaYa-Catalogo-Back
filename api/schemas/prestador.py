@@ -47,10 +47,10 @@ class PrestadorOut(BaseModel):
     habilidades: Optional[list] = None
     zonas: Optional[list] = None
     foto: Optional[str] = None
-    estado: str
-    ciudad: str
-    calle: str
-    numero: str
+    estado: Optional[str] = None
+    ciudad: Optional[str] = None
+    calle: Optional[str] = None
+    numero: Optional[str] = None
     piso: Optional[str] = None
     departamento: Optional[str] = None
     id_prestador: Optional[int] = None

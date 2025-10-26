@@ -633,7 +633,7 @@ def add_habilidad_to_prestador(
 def remove_habilidad_from_prestador(
     prestador_id: int,
     id_habilidad: int = Body(..., embed=True),
-    current_user: dict = Depends(require_admin_or_prestador_role)
+    current_user: dict = Depends(require_internal_admin_or_prestador)
 ):
     try:
         with get_connection() as (cursor, conn):

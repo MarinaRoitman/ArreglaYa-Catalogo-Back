@@ -13,7 +13,8 @@ def list_admins(
     nombre: Optional[str] = None,
     apellido: Optional[str] = None,
     email: Optional[str] = None,
-    current_user: dict = Depends(require_admin_role)
+    id_admin: Optional[int] = None,
+    current_user: dict = Depends(require_internal_or_admin)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -29,6 +30,9 @@ def list_admins(
             if email:
                 query += " AND email LIKE %s"
                 params.append(f"%{email}%")
+            if id_admin:
+                query += " AND id_admin = %s"
+                params.append(id_admin)
 
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
@@ -95,7 +99,7 @@ def create_admin(admin: AdminCreate, current_user: dict = Depends(require_intern
 
 # Obtener un admin por ID (solo admin)
 @router.get("/{admin_id}", response_model=AdminOut)
-def get_admin(admin_id: int, current_user: dict = Depends(require_admin_role)):
+def get_admin(admin_id: int, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("SELECT id, nombre, apellido, email, activo, id_admin, foto FROM admin WHERE id = %s", (admin_id,))
