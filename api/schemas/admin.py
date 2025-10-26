@@ -9,7 +9,7 @@ class AdminBase(BaseModel):
     foto: Optional[str] = None
 
 class AdminCreate(AdminBase):
-    password: str
+    password:  Optional[str] = None
     id_admin: Optional[int] = None
 
 class AdminUpdate(BaseModel):

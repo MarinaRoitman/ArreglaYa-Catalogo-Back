@@ -2,6 +2,7 @@
 import os, time, logging, pymysql, uuid
 from dotenv import load_dotenv
 from process import process_message
+import requests
 
 # Cargar .env (busca en el cwd y en la raíz del proyecto)
 load_dotenv()
@@ -105,6 +106,13 @@ def run():
             msg_id = claim_one(conn)
             if msg_id:
                 process_message(conn, msg_id)
+                ack_body = {"messageId": f"{msg_id}"}
+                ack_headers = {
+                    "Content-Type": "application/json",
+                    "X-API-KEY": f"{os.getenv('CORE_API_KEY', 'ch_812ec720cd32409693886474bda08640')}"
+                }
+                requests.post(f"https://nonprodapi.uade-corehub.com/messages/ack/{msg_id}", headers=ack_headers, json=ack_body)
+                logging.info(f"Mensaje ackeado messageId={msg_id}")
             else:
                 # 🔄 No hay mensajes nuevos, esperar un poco
                 logging.debug("Sin mensajes pendientes...")
