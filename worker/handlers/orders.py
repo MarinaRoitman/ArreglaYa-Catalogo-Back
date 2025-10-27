@@ -1,5 +1,6 @@
 
 import logging, requests
+from handlers.helpers import obtener_id_real
 
 def handle(event_name, payload, api_base_url, headers):
     if event_name == "emitida": # representa la creación de un pedido? lo dejo para el final
@@ -60,23 +61,7 @@ def handle(event_name, payload, api_base_url, headers):
         logging.info(f"🔄 Payload normalizado: {body}")
 
 
-        try:
-          response = requests.get(
-              f"{api_base_url}/pedidos",
-              params={"id_pedido": pedido_id},
-              headers=headers,
-              timeout=5
-          )
-          # obtener el id real a través del response
-          if response.status_code == 200:
-              pedido_data = response.json()
-              if pedido_data:
-                  logging.info(f"Pedido obtenido: {pedido_data}")
-                  id_pedido = pedido_data[0].get("id")
-                  logging.info(f"id de pedido {id_pedido}")
-          logging.info(f"Respuesta del API al obtener pedido: {response.status_code} - {response.text}")
-        except Exception as e:
-              logging.exception(f"Error al enviar GET de pedido {e}")
+        id_pedido = obtener_id_real(pedido_id,"pedidos","id_pedido",api_base_url,headers)
 
         # persistir en la tabla pedidos
         try:
@@ -105,23 +90,7 @@ def handle(event_name, payload, api_base_url, headers):
         logging.warning("⚠️ No se encontró payload con datos de pago, evento ignorado.")
         return
 
-      try:
-        response = requests.get(
-            f"{api_base_url}/pedidos",
-            params={"id_pedido": pedido_id},
-            headers=headers,
-            timeout=5
-        )
-        # obtener el id real a través del response
-        if response.status_code == 200:
-            pedido_data = response.json()
-            if pedido_data:
-                logging.info(f"Pedido obtenido: {pedido_data}")
-                id_pedido = pedido_data[0].get("id")
-                logging.info(f"id de pedido {id_pedido}")
-        logging.info(f"Respuesta del API al obtener pedido: {response.status_code} - {response.text}")
-      except Exception as e:
-            logging.exception(f"Error al enviar GET de pedido {e}")
+      id_pedido = obtener_id_real(pedido_id,"pedidos","id_pedido",api_base_url,headers)
 
       try:
           response = requests.delete(
