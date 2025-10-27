@@ -1,6 +1,27 @@
 import logging
 import requests
 
+def obtener_id_real(id_secundario,tabla,id_real,url,headers):
+    try:
+        response = requests.get(
+            f"{url}/{tabla}",
+            params={id_real:id_secundario},
+            headers=headers,
+            timeout=5
+        )
+        # obtener el id real a través del response
+        if response.status_code == 200:
+            prestador_data = response.json()
+            if prestador_data:
+                id_encontrado = prestador_data[0].get("id")
+                logging.info(f"id obtenido: {id_encontrado}")
+        logging.info(f"Respuesta del API: {response.status_code} - {response.text}")
+        return id_encontrado
+    except Exception as e:
+            logging.exception(f"Error al enviar GET de {tabla} {e}")
+            return None
+    
+
 def handle(event_name, payload, API_BASE_URL, headers):
     """
     Maneja los eventos relacionados con calificaciones (reviews).
@@ -23,21 +44,27 @@ def handle(event_name, payload, API_BASE_URL, headers):
         }
     }
     """
-
-    # Extraer partes relevantes del mensaje
-
+    
     data = payload.get("payload", {})
-
+    prestador_id = data.get("prestador_id")
+    usuario_id = data.get("usuario_id")
+    
     if not data:
         logging.warning("⚠️ No se encontró payload con datos de calificación, evento ignorado.")
         return
+    # obtener id real del prestador
+    id_prestador = obtener_id_real(prestador_id,"prestadores","id_prestador",API_BASE_URL,headers)
     
+    # obtener id real del usuario
+    id_usuario = obtener_id_real(usuario_id,"usuarios","id_usuario",API_BASE_URL,headers)
+
+
     # === Normalizar claves ===
         # Crear nuevo body con las claves que espera tu API
     body = {
         "id_calificacion": data.get("calificacion_id"),
-        "id_prestador": data.get("prestador_id"),
-        "id_usuario": data.get("usuario_id"),
+        "id_prestador": id_prestador,
+        "id_usuario": id_usuario,
         "estrellas": float(data.get("puntuacion", 0)),
         "descripcion": data.get("comentario"),
     }

@@ -34,14 +34,15 @@ def process_message(conn, msg_id):
             logging.info("headers inside process_message: ", headers)
             users.handle(event_name, payload, API_BASE_URL, headers)
 
-        # elif topic == "matching" or topic.startswith("solicitud.") or topic.startswith("cotizacion."):
-        #     # Se emitió una solicitud con cotizaciones posibles
-        #     orders.handle(event_name, payload, API_BASE_URL)
-
         elif topic == "calificacion":
             # El cliente creó una calificación
             reviews.handle(event_name, payload, API_BASE_URL, headers)
 
+        elif topic ==  "solicitud" or "cotizacion":
+            if event_name == "cancelada":
+                orders.handle("rechazada", payload, API_BASE_URL, headers)
+            else:
+                orders.handle(event_name, payload, API_BASE_URL, headers)
         else:
             logging.info(f"⚠️ Evento no reconocido: {topic}")
             return

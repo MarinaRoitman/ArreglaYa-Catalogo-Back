@@ -7,14 +7,14 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.pedido import PedidoCreate, PedidoUpdate, PedidoOut
-from core.security import require_admin_role, require_admin_or_prestador_role
+from core.security import require_admin_or_prestador_role, require_internal_or_admin, require_internal_admin_or_prestador
 from schemas.pedido import EstadoPedido
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 # Crear pedido
 @router.post("/", response_model=PedidoOut, summary="Crear pedido")
-def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_admin_role)):
+def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             # INSERT
@@ -60,7 +60,7 @@ def list_pedidos(
     id_zona: Optional[int] = None,
     es_critico: Optional[bool] = None,
     id_pedido: Optional[int] = None,
-    current_user: dict = Depends(require_admin_or_prestador_role)
+    current_user: dict = Depends(require_internal_admin_or_prestador)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -108,7 +108,7 @@ def get_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_pre
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/{pedido_id}", response_model=PedidoOut, summary="Modificar pedido")
-def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Depends(require_admin_or_prestador_role)):
+def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Depends(require_internal_admin_or_prestador)):
     try:
         with get_connection() as (cursor, conn):
             fields, values = [], []
@@ -205,7 +205,7 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
 
 # Eliminar pedido
 @router.delete("/{pedido_id}", summary="Cancelar pedido")
-def delete_pedido(pedido_id: int, current_user: dict = Depends(require_admin_or_prestador_role)):
+def delete_pedido(pedido_id: int, current_user: dict = Depends(require_internal_admin_or_prestador)):
     try:
         with get_connection() as (cursor, conn):
             # Obtener pedido original
