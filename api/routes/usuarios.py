@@ -17,13 +17,14 @@ def list_usuarios(
     estado_pri: Optional[str] = None,
     ciudad_pri: Optional[str] = None,
     telefono: Optional[str] = None,
-    current_user: dict = Depends(require_admin_role)
+    id_usuario: Optional[int] = None,
+    current_user: dict = Depends(require_internal_or_admin)
 ):
     try:
         with get_connection() as (cursor, conn):
             query = """SELECT id, nombre, apellido, dni, telefono, activo, foto,
                       estado_pri, ciudad_pri, calle_pri, numero_pri, piso_pri, departamento_pri,
-                      estado_sec, ciudad_sec, calle_sec, numero_sec, piso_sec, departamento_sec 
+                      estado_sec, ciudad_sec, calle_sec, numero_sec, piso_sec, departamento_sec, id_usuario
                       FROM usuario WHERE 1=1"""
             params = []
 
@@ -45,13 +46,15 @@ def list_usuarios(
             if telefono:
                 query += " AND telefono LIKE %s"
                 params.append(f"%{telefono}%")
+            if id_usuario:
+                query += " AND id_usuario = %s"
+                params.append(id_usuario)
 
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Crear un usuario (registro público → no requiere JWT)
 @router.post("/", response_model=UsuarioOut)
 def create_usuario(usuario: UsuarioCreate, current_user: dict = Depends(require_internal_or_admin)):
     try:
@@ -152,7 +155,7 @@ def update_usuario(
 
 # Eliminar un usuario (requiere JWT)
 @router.delete("/{usuario_id}")
-def delete_usuario(usuario_id: int, current_user: dict = Depends(require_admin_role)):  
+def delete_usuario(usuario_id: int, current_user: dict = Depends(require_internal_or_admin)):  
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("UPDATE usuario SET activo = %s WHERE id=%s", (False, usuario_id))

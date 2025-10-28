@@ -29,23 +29,20 @@ def process_message(conn, msg_id):
         logging.info(f"🔍 Procesando {topic} - {event_name}")
 
         # Despachador según canal (hay que completar con el resto de los canales)
-        # Despachador según canal
         if topic == "user":
             # Usuarios (clientes, prestadores, admins)
             logging.info("headers inside process_message: ", headers)
             users.handle(event_name, payload, API_BASE_URL, headers)
 
-        elif topic == "matching." or topic.startswith("solicitud.") or topic.startswith("cotizacion."):
-            # Se emitió una solicitud con cotizaciones posibles
-            orders.handle(event_name, payload, API_BASE_URL)
-
-        elif topic == "review":
+        elif topic == "calificacion":
             # El cliente creó una calificación
-            reviews.handle(event_name, payload, API_BASE_URL)
+            reviews.handle(event_name, payload, API_BASE_URL, headers)
 
-        elif topic == "review.actualizada":
-            # El cliente actualizó una calificación
-            reviews.handle(event_name, payload, API_BASE_URL)
+        elif topic ==  "solicitud" or "cotizacion":
+            if event_name == "cancelada":
+                orders.handle("rechazada", payload, API_BASE_URL, headers)
+            else:
+                orders.handle(event_name, payload, API_BASE_URL, headers)
         else:
             logging.info(f"⚠️ Evento no reconocido: {topic}")
             return

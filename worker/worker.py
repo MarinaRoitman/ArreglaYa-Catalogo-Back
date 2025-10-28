@@ -2,6 +2,9 @@
 import os, time, logging, pymysql, uuid
 from dotenv import load_dotenv
 from process import process_message
+import requests
+
+# from core_ack import send_ack
 
 # Cargar .env (busca en el cwd y en la raíz del proyecto)
 load_dotenv()
@@ -105,6 +108,7 @@ def run():
             msg_id = claim_one(conn)
             if msg_id:
                 process_message(conn, msg_id)
+                # send_ack(msg_id, sub_id)
             else:
                 # 🔄 No hay mensajes nuevos, esperar un poco
                 logging.debug("Sin mensajes pendientes...")

@@ -3,7 +3,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.admin import AdminCreate, AdminUpdate, AdminOut
-from core.security import get_password_hash, require_admin_role
+from core.security import require_admin_role, require_internal_or_admin
 
 router = APIRouter(prefix="/admins", tags=["Admins"])
 
@@ -13,7 +13,8 @@ def list_admins(
     nombre: Optional[str] = None,
     apellido: Optional[str] = None,
     email: Optional[str] = None,
-    current_user: dict = Depends(require_admin_role)
+    id_admin: Optional[int] = None,
+    current_user: dict = Depends(require_internal_or_admin)
 ):
     try:
         with get_connection() as (cursor, conn):
@@ -29,6 +30,9 @@ def list_admins(
             if email:
                 query += " AND email LIKE %s"
                 params.append(f"%{email}%")
+            if id_admin:
+                query += " AND id_admin = %s"
+                params.append(id_admin)
 
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
@@ -37,40 +41,65 @@ def list_admins(
 
 # Crear un admin (solo admin)
 @router.post("/", response_model=AdminOut)
-def create_admin(admin: AdminCreate, current_user: dict = Depends(require_admin_role)):
+def create_admin(admin: AdminCreate, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
-            hashed_password = get_password_hash(admin.password)
-            query = """INSERT INTO admin
+            
+            if admin.foto:
+                query = """INSERT INTO admin
                        (nombre, apellido, email, password, id_admin, activo, foto)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-            values = (
-                admin.nombre,
-                admin.apellido,
-                admin.email,
-                hashed_password,
-                admin.id_admin,
-                True,
-                admin.foto
-            )
-            cursor.execute(query, values)
-            conn.commit()
-            new_id = cursor.lastrowid
-            return {
-                "id": new_id,
-                "nombre": admin.nombre,
-                "apellido": admin.apellido,
-                "email": admin.email,
-                "activo": True,
-                "id_admin": admin.id_admin,
-                "foto": admin.foto
-            }
+                values = (
+                    admin.nombre,
+                    admin.apellido,
+                    admin.email,
+                    admin.password,
+                    admin.id_admin,
+                    True,
+                    admin.foto
+                )
+                cursor.execute(query, values)
+                conn.commit()
+                new_id = cursor.lastrowid
+                return {
+                    "id": new_id,
+                    "nombre": admin.nombre,
+                    "apellido": admin.apellido,
+                    "email": admin.email,
+                    "activo": True,
+                    "id_admin": admin.id_admin,
+                    "foto": admin.foto
+                }
+            else:
+                query = """INSERT INTO admin
+                       (nombre, apellido, email, password, id_admin, activo)
+                       VALUES (%s, %s, %s, %s, %s, %s)"""
+                values = (
+                    admin.nombre,
+                    admin.apellido,
+                    admin.email,
+                    admin.password,
+                    admin.id_admin,
+                    True
+                )
+                cursor.execute(query, values)
+                conn.commit()
+                new_id = cursor.lastrowid
+                return {
+                    "id": new_id,
+                    "nombre": admin.nombre,
+                    "apellido": admin.apellido,
+                    "email": admin.email,
+                    "activo": True,
+                    "id_admin": admin.id_admin,
+                    "foto": None
+                }
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 # Obtener un admin por ID (solo admin)
 @router.get("/{admin_id}", response_model=AdminOut)
-def get_admin(admin_id: int, current_user: dict = Depends(require_admin_role)):
+def get_admin(admin_id: int, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("SELECT id, nombre, apellido, email, activo, id_admin, foto FROM admin WHERE id = %s", (admin_id,))
@@ -83,18 +112,11 @@ def get_admin(admin_id: int, current_user: dict = Depends(require_admin_role)):
 
 # Actualizar un admin (solo admin)
 @router.patch("/{admin_id}", response_model=AdminOut)
-def update_admin(admin_id: int, admin: AdminUpdate, current_user: dict = Depends(require_admin_role)):
+def update_admin(admin_id: int, admin: AdminUpdate, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             fields = []
             values = []
-
-            update_data = admin.dict(exclude_unset=True)
-            if 'password' in update_data and update_data['password']:
-                hashed_password = get_password_hash(update_data['password'])
-                fields.append("password=%s")
-                values.append(hashed_password)
-                del update_data['password']
                 
             for key, value in admin.dict(exclude_unset=True).items():
                 fields.append(f"{key}=%s")
@@ -119,7 +141,7 @@ def update_admin(admin_id: int, admin: AdminUpdate, current_user: dict = Depends
 
 # Eliminar un admin (baja lógica, solo admin)
 @router.delete("/{admin_id}")
-def delete_admin(admin_id: int, current_user: dict = Depends(require_admin_role)):
+def delete_admin(admin_id: int, current_user: dict = Depends(require_internal_or_admin)):
     try:
         with get_connection() as (cursor, conn):
             cursor.execute("UPDATE admin SET activo = %s WHERE id=%s", (False, admin_id))
