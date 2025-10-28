@@ -78,18 +78,18 @@ def handle(event_name, payload, API_BASE_URL, headers):
         match user_role:
             case "cliente":
                 cliente_body = {}
-                if len(data.get("address", [])) > 1 or len(data.get("address", [])) == 0:
+                if len(data.get("addresses", [])) > 1 or len(data.get("addresses", [])) == 0:
                     cliente_body = {
                         "nombre" : data.get("firstName"), "apellido": data.get("lastName"), "dni": data.get("dni"), "telefono": data.get("phoneNumber"), 
                         "id_usuario": user_id_int,
-                        "estado_pri": data.get("address")[0].get("state", None), "ciudad_pri":  data.get("address")[0].get("city", None), "calle_pri":  data.get("address")[0].get("street", None), "numero_pri":  data.get("address")[0].get("number", None), "piso_pri":  data.get("address")[0].get("floor", None), "departamento_pri" :  data.get("address")[0].get("apartment", None),
-                        "estado_sec": data.get("address")[1].get("state", None), "ciudad_sec": data.get("address")[1].get("city", None), "calle_sec": data.get("address")[1].get("street", None), "numero_sec": data.get("address")[1].get("number", None), "piso_sec": data.get("address")[1].get("floor", None), "departamento_sec": data.get("address")[1].get("apartment", None)
+                        "estado_pri": data.get("addresses")[0].get("state", None), "ciudad_pri":  data.get("addresses")[0].get("city", None), "calle_pri":  data.get("addresses")[0].get("street", None), "numero_pri":  data.get("addresses")[0].get("number", None), "piso_pri":  data.get("addresses")[0].get("floor", None), "departamento_pri" :  data.get("addresses")[0].get("apartment", None),
+                        "estado_sec": data.get("addresses")[1].get("state", None), "ciudad_sec": data.get("addresses")[1].get("city", None), "calle_sec": data.get("addresses")[1].get("street", None), "numero_sec": data.get("addresses")[1].get("number", None), "piso_sec": data.get("addresses")[1].get("floor", None), "departamento_sec": data.get("addresses")[1].get("apartment", None)
                     }
-                elif len(data.get("address", [])) == 1:
+                elif len(data.get("addresses", [])) == 1:
                     cliente_body = {
                         "nombre" : data.get("firstName"), "apellido": data.get("lastName"), "dni": data.get("dni"), "telefono": data.get("phoneNumber"), 
                         "id_usuario": user_id_int,
-                        "estado_pri": data.get("address")[0].get("state"), "ciudad_pri":  data.get("address")[0].get("city"), "calle_pri":  data.get("address")[0].get("street"), "numero_pri":  data.get("address")[0].get("number"), "piso_pri":  data.get("address")[0].get("floor", None), "departamento_pri" :  data.get("address")[0].get("apartment", None),
+                        "estado_pri": data.get("addresses")[0].get("state"), "ciudad_pri":  data.get("addresses")[0].get("city"), "calle_pri":  data.get("addresses")[0].get("street"), "numero_pri":  data.get("addresses")[0].get("number"), "piso_pri":  data.get("addresses")[0].get("floor", None), "departamento_pri" :  data.get("addresses")[0].get("apartment", None),
                     }
                 else:
                     logging.error("Evento 'user_created' para cliente no tiene 'address'.")
@@ -110,7 +110,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                 response = requests.post(f"{API_BASE_URL}/admins", json=admin_body, headers=headers)
             
             case "prestador":
-                if not data.get("address"):
+                if not data.get("addresses"):
                      logging.error("Evento 'user_created' para prestador no tiene 'address'.")
                      return
                 
@@ -122,12 +122,12 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "telefono": data.get("phoneNumber"),
                     "dni": data.get("dni"),
                     "foto": data.get("foto", None),
-                    "estado": data.get("address")[0].get("state", None),
-                    "ciudad": data.get("address")[0].get("city", None),
-                    "calle": data.get("address")[0].get("street", None),
-                    "numero": data.get("address")[0].get("number", None),
-                    "piso": data.get("address")[0].get("floor", None),
-                    "departamento": data.get("address")[0].get("apartment", None),
+                    "estado": data.get("addresses")[0].get("state", None),
+                    "ciudad": data.get("addresses")[0].get("city", None),
+                    "calle": data.get("addresses")[0].get("street", None),
+                    "numero": data.get("addresses")[0].get("number", None),
+                    "piso": data.get("addresses")[0].get("floor", None),
+                    "departamento": data.get("addresses")[0].get("apartment", None),
                     "id_prestador": user_id_int
                 }
                 response = requests.post(f"{API_BASE_URL}/prestadores", json=prestador_body, headers=headers)
@@ -179,9 +179,9 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     if event_key in data:
                         patch_body[api_key] = data[event_key]
                 
-                if "address" in data and isinstance(data.get("address"), list):
-                    if len(data["address"]) > 0:
-                        addr_pri = data["address"][0]
+                if "addresses" in data and isinstance(data.get("addresses"), list):
+                    if len(data["addresses"]) > 0:
+                        addr_pri = data["addresses"][0]
                         patch_body.update({
                             "estado_pri": addr_pri.get("state"),
                             "ciudad_pri": addr_pri.get("city"),
@@ -190,8 +190,8 @@ def handle(event_name, payload, API_BASE_URL, headers):
                             "piso_pri": addr_pri.get("floor"),
                             "departamento_pri": addr_pri.get("apartment")
                         })
-                    if len(data["address"]) > 1:
-                        addr_sec = data["address"][1]
+                    if len(data["addresses"]) > 1:
+                        addr_sec = data["addresses"][1]
                         patch_body.update({
                             "estado_sec": addr_sec.get("state"),
                             "ciudad_sec": addr_sec.get("city"),
@@ -231,7 +231,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                         patch_body[api_key] = data[event_key]
 
                 # Mapeo de dirección (prestador solo tiene 1)
-                address_list = data.get("address", [])
+                address_list = data.get("addresses", [])
                 if isinstance(address_list, list) and len(address_list) > 0:
                     addr = address_list[0]
                     # Solo actualizar si el diccionario addr no está vacío
