@@ -44,7 +44,7 @@ def find_user_by_external_id(external_id: int, api_base_url: str, headers: dict)
                 internal_id = user_list[0].get("id")
                 if internal_id:
                     logging.info(f"ID Externo {external_id} encontrado en /admins")
-                    return {"role": "administrador", "internal_id": internal_id, "api_path": "/admins"}
+                    return {"role": "admin", "internal_id": internal_id, "api_path": "/admins"}
     except Exception as e:
         logging.error(f"Error al buscar en /admins: {e}")
         
@@ -77,27 +77,36 @@ def handle(event_name, payload, API_BASE_URL, headers):
 
         match user_role:
             case "cliente":
-                cliente_body = {}
-                if len(data.get("addresses", [])) > 1 or len(data.get("addresses", [])) == 0:
-                    cliente_body = {
-                        "nombre" : data.get("firstName"), "apellido": data.get("lastName"), "dni": data.get("dni"), "telefono": data.get("phoneNumber"), 
-                        "id_usuario": user_id_int,
-                        "estado_pri": data.get("addresses")[0].get("state", None), "ciudad_pri":  data.get("addresses")[0].get("city", None), "calle_pri":  data.get("addresses")[0].get("street", None), "numero_pri":  data.get("addresses")[0].get("number", None), "piso_pri":  data.get("addresses")[0].get("floor", None), "departamento_pri" :  data.get("addresses")[0].get("apartment", None),
-                        "estado_sec": data.get("addresses")[1].get("state", None), "ciudad_sec": data.get("addresses")[1].get("city", None), "calle_sec": data.get("addresses")[1].get("street", None), "numero_sec": data.get("addresses")[1].get("number", None), "piso_sec": data.get("addresses")[1].get("floor", None), "departamento_sec": data.get("addresses")[1].get("apartment", None)
-                    }
-                elif len(data.get("addresses", [])) == 1:
-                    cliente_body = {
-                        "nombre" : data.get("firstName"), "apellido": data.get("lastName"), "dni": data.get("dni"), "telefono": data.get("phoneNumber"), 
-                        "id_usuario": user_id_int,
-                        "estado_pri": data.get("addresses")[0].get("state"), "ciudad_pri":  data.get("addresses")[0].get("city"), "calle_pri":  data.get("addresses")[0].get("street"), "numero_pri":  data.get("addresses")[0].get("number"), "piso_pri":  data.get("addresses")[0].get("floor", None), "departamento_pri" :  data.get("addresses")[0].get("apartment", None),
-                    }
-                else:
-                    logging.error("Evento 'user_created' para cliente no tiene 'address'.")
-                    return
+                addresses = data.get("addresses", [])
+                
+                addr_pri = addresses[0] if len(addresses) > 0 else {}
+                addr_sec = addresses[1] if len(addresses) > 1 else {}
 
+                cliente_body = {
+                    "nombre" : data.get("firstName"), 
+                    "apellido": data.get("lastName"), 
+                    "dni": data.get("dni"), 
+                    "telefono": data.get("phoneNumber"), 
+                    "id_usuario": user_id_int,
+                    
+                    "estado_pri": addr_pri.get("state"), 
+                    "ciudad_pri":  addr_pri.get("city"), 
+                    "calle_pri":  addr_pri.get("street"), 
+                    "numero_pri":  addr_pri.get("number"), 
+                    "piso_pri":  addr_pri.get("floor"), 
+                    "departamento_pri" : addr_pri.get("apartment"),
+                    
+                    "estado_sec": addr_sec.get("state"), 
+                    "ciudad_sec": addr_sec.get("city"), 
+                    "calle_sec": addr_sec.get("street"), 
+                    "numero_sec": addr_sec.get("number"), 
+                    "piso_sec": addr_sec.get("floor"), 
+                    "departamento_sec": addr_sec.get("apartment")
+                }
+                
                 response = requests.post(f"{API_BASE_URL}/usuarios", json=cliente_body, headers=headers)
             
-            case "administrador":
+            case "admin":
                 admin_body = {
                     "nombre": data.get("firstName"),
                     "apellido": data.get("lastName"),
@@ -110,9 +119,9 @@ def handle(event_name, payload, API_BASE_URL, headers):
                 response = requests.post(f"{API_BASE_URL}/admins", json=admin_body, headers=headers)
             
             case "prestador":
-                if not data.get("addresses"):
-                     logging.error("Evento 'user_created' para prestador no tiene 'address'.")
-                     return
+                addresses = data.get("addresses", [])
+                
+                addr = addresses[0] if len(addresses) > 0 else {}
                 
                 prestador_body = {
                     "nombre": data.get("firstName"),
@@ -122,12 +131,13 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "telefono": data.get("phoneNumber"),
                     "dni": data.get("dni"),
                     "foto": data.get("foto", None),
-                    "estado": data.get("addresses")[0].get("state", None),
-                    "ciudad": data.get("addresses")[0].get("city", None),
-                    "calle": data.get("addresses")[0].get("street", None),
-                    "numero": data.get("addresses")[0].get("number", None),
-                    "piso": data.get("addresses")[0].get("floor", None),
-                    "departamento": data.get("addresses")[0].get("apartment", None),
+                    "estado": addr.get("state"),
+                    "ciudad": addr.get("city"),
+                    "calle": addr.get("street"),
+                    "numero": addr.get("number"),
+                    "piso": addr.get("floor"),
+                    "departamento": addr.get("apartment"),
+                    
                     "id_prestador": user_id_int
                 }
                 response = requests.post(f"{API_BASE_URL}/prestadores", json=prestador_body, headers=headers)
@@ -167,7 +177,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
         response = None
         
         match role:
-            case "cliente":                
+            case "cliente":
                 field_map = {
                     "firstName": "nombre",
                     "lastName": "apellido",
@@ -203,7 +213,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                 
                 response = requests.patch(f"{API_BASE_URL}{api_path}/{internal_id}", json=patch_body, headers=headers)
 
-            case "administrador":
+            case "admin":
                 field_map = {
                     "firstName": "nombre",
                     "lastName": "apellido",
@@ -261,7 +271,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
         match user_role:
             case "cliente":
                 pass
-            case "administrador":
+            case "admin":
                 pass
             case "prestador":
                 pass
