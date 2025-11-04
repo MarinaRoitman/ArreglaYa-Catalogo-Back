@@ -3,44 +3,61 @@ import logging, requests
 from handlers.helpers import obtener_id_real
 
 def handle(event_name, payload, api_base_url, headers):
-    if event_name == "emitida": # representa la creación de un pedido? lo dejo para el final
-        logging.info("📦 Nueva cotización emitida")
-        logging.info (f"Payload recibido: {payload}")
-        payload = payload.get("payload", {})
-        data = payload.get("pago", {})
+  # COTIZACION CREADA --> testear
+  if event_name == "emitida":
+    logging.info("📦 Nueva solicitud de cotización emitida")
+    payload_data = payload.get("payload", {})
 
-        if not data:
-            logging.warning("⚠️ No se encontró payload con datos de pago, evento ignorado.")
-            return
-            
-        # Normalización del payload
-        # HAY QUE MODIFICAR EL PAYLOAD YA QUE ME BASÉ EN SOLICITUD DE PAGO NO DE COTIZACIÓN 
-        body = {
-        "id_usuario": data.get("idUsuario"),
-        "estado": "pendiente",
-        "tarifa": data.get("montoSubtotal"),
-        "descripcion": "Cotización del usuario",
-        "id_prestador": data.get("idPrestador"),
-        "fecha": payload.get("generatedAt"),
-        "id_habilidad": 14, 
-        "id_pedido": data.get("idSolicitud"),
-        "es_critico": False,
-        "id_zona": 2
-        }
-        logging.info(f"🔄 Payload normalizado: {body}")
+    solicitudes = payload_data.get("solicitudes", [])
+    if not solicitudes:
+        logging.warning("⚠️ No se encontraron solicitudes en el payload, evento ignorado.")
+        return
 
-        try:
-            response = requests.post(
-                f"{api_base_url}/pedidos/",
-                json=body,
-                timeout=5,
-                headers=headers
-            )
-            logging.info(f"Respuesta del API al crear pedido: {response.status_code} - {response.text}")
-        except requests.Timeout:
-            logging.error("⏰ Timeout al crear pedido")
-        except requests.RequestException as e:
-            logging.error(f"💥 Error al crear pedido: {e}")
+    total_creados = 0
+
+    for solicitud in solicitudes:
+        solicitud_id = solicitud.get("solicitudId")
+        descripcion = solicitud.get("descripcion")
+        es_critico = solicitud.get("esCritica", False)
+        fecha = solicitud.get("timestamp") or payload_data.get("generatedAt")
+
+        # Recorrer los prestadores en top3
+        for prestador in solicitud.get("top3", []):
+            body = {
+                "id_pedido": solicitud_id,
+                "descripcion": descripcion or f"Solicitud {solicitud_id}",
+                "estado": "pendiente",
+                "es_critico": es_critico,
+                "fecha": fecha,
+                "id_habilidad": prestador.get("habilidadId"),
+                "id_prestador": prestador.get("prestadorId"),
+                "id_usuario": None,  # No viene en el payload
+                "id_zona": None,     # No viene en el payload
+                "tarifa": None       # No viene en el payload
+            }
+
+            logging.info(f"📝 Creando pedido para prestador {prestador.get('prestadorNombre')} con body: {body}")
+
+            try:
+                response = requests.post(
+                    f"{api_base_url}/pedidos/",
+                    json=body,
+                    headers=headers,
+                    timeout=5
+                )
+
+                if response.status_code == 201:
+                    total_creados += 1
+                    logging.info(f"✅ Pedido creado correctamente para prestador {prestador.get('prestadorId')}")
+                else:
+                    logging.warning(f"⚠️ Error creando pedido ({response.status_code}): {response.text}")
+
+            except requests.Timeout:
+                logging.error(f"⏰ Timeout al crear pedido para prestador {prestador.get('prestadorId')}")
+            except requests.RequestException as e:
+                logging.error(f"💥 Error de request al crear pedido: {e}")
+
+    logging.info(f"📊 Total de pedidos creados: {total_creados}")
 
     # COTIZACION ACEPTADA
     if event_name == "aceptada":
