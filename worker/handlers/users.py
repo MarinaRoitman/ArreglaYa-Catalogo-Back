@@ -137,7 +137,6 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "numero": addr.get("number"),
                     "piso": addr.get("floor"),
                     "departamento": addr.get("apartment"),
-                    
                     "id_prestador": user_id_int
                 }
                 response = requests.post(f"{API_BASE_URL}/prestadores", json=prestador_body, headers=headers)
@@ -255,7 +254,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                             "departamento": addr.get("apartment")
                         })
                 
-                response = requests.patch(f"{API_BASE_URL}{api_path}/{internal_id}", json=patch_body, headers=headers)
+                response = requests.patch(f"{API_BASE_URL}{api_path}/{internal_id}/interno", json=patch_body, headers=headers)
         
         if response is not None:
             logging.info(f"Respuesta del API al actualizar {user_role}: {response.status_code} - {response.text}")
@@ -310,6 +309,9 @@ def handle(event_name, payload, API_BASE_URL, headers):
         logging.info(f"Usuario encontrado. Rol: {role}, ID Interno: {internal_id}. Procediendo a desactivar (DELETE).")
         
         delete_url = f"{API_BASE_URL}{api_path}/{internal_id}"
+        if role == "prestador":
+            delete_url += "/interno"
+            
         logging.info(f"Enviando DELETE para rol '{role}' a {delete_url}")
         try:
             response = requests.delete(delete_url, headers=headers)

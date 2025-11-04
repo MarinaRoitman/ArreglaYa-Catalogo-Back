@@ -503,7 +503,6 @@ def remove_zona_from_prestador(
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 #Listar prestadores por zona
 @router.get("/zona/{id_zona}", response_model=List[PrestadorOut], summary="Listar prestadores por zona")
 def get_prestadores_by_zona(
@@ -803,5 +802,122 @@ def create_prestador(prestador: PrestadorCreate, current_user: dict = Depends(re
             
             return created_prestador
 
+    except Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/{prestador_id}/interno", 
+            response_model=PrestadorOut, 
+            summary="Modificar prestador sin publicar eventos",
+            description="Modifica un prestador. Esta ruta es solo para uso interno y no publica un evento de 'modificacion'.")
+def update_prestador_no_event(
+    prestador_id: int, 
+    prestador: PrestadorUpdate, 
+    current_user: dict = Depends(require_internal_or_admin)
+):
+    try:        
+        with get_connection() as (cursor, conn):
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            existing = cursor.fetchone()
+            if not existing:
+                raise HTTPException(status_code=404, detail="Prestador no encontrado")
+            
+            fields = []
+            values = []
+            data = prestador.model_dump(exclude_unset=True)
+            
+            if prestador.email:
+                cursor.execute("SELECT id FROM prestador WHERE email = %s AND id != %s", (prestador.email, prestador_id))
+                if cursor.fetchone():
+                    raise HTTPException(status_code=409, detail="Email ya registrado en otro prestador")
+            
+            if prestador.dni:
+                cursor.execute("SELECT id FROM prestador WHERE dni = %s AND id != %s", (prestador.dni, prestador_id))
+                if cursor.fetchone():
+                    raise HTTPException(status_code=409, detail="DNI ya registrado en otro prestador")
+
+            if not data:
+                raise HTTPException(status_code=400, detail="No se enviaron campos válidos para actualizar")
+            if "telefono" in data and data["telefono"] and not data["telefono"].isdigit():
+                raise HTTPException(status_code=400, detail="El teléfono debe ser numérico")
+            if "dni" in data and data["dni"] and not data["dni"].isdigit():
+                raise HTTPException(status_code=400, detail="El dni debe ser numérico")
+            
+            if "contrasena" in data and data.get("contrasena"):
+                fields.append("password=%s") 
+                values.append(data["contrasena"])
+                del data["contrasena"]
+
+            # Construir query dinámica
+            for key, value in data.items():
+                fields.append(f"{key}=%s")
+                values.append(value)
+
+            if not fields:
+                raise HTTPException(status_code=400, detail="No se enviaron campos válidos para actualizar")
+
+            values.append(prestador_id)
+            query = f"UPDATE prestador SET {', '.join(fields)} WHERE id=%s"
+            
+            cursor.execute(query, tuple(values))
+            conn.commit()
+            
+            cursor.execute("SELECT * FROM prestador WHERE id=%s", (prestador_id,))
+            result = cursor.fetchone()
+            
+            # Obtener zonas
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            result["zonas"] = cursor.fetchall()
+
+            # Obtener habilidades
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            result["habilidades"] = cursor.fetchall()
+
+            return result
+    except Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{prestador_id}/interno")
+def delete_prestador_no_event(prestador_id: int, current_user: dict = Depends(require_internal_admin_or_prestador)):
+    try:
+        with get_connection() as (cursor, conn):
+            # Baja lógica: actualizar campo activo a False
+            cursor.execute("UPDATE prestador SET activo = %s WHERE id=%s", (False, prestador_id))
+            conn.commit()
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Prestador no encontrado")
+
+            # Obtener el prestador actualizado
+            cursor.execute("SELECT * FROM prestador WHERE id = %s", (prestador_id,))
+            prestador_actualizado = cursor.fetchone()
+            
+            cursor.execute("""
+                SELECT z.id, z.nombre
+                FROM zona z
+                INNER JOIN prestador_zona pz ON z.id = pz.id_zona
+                WHERE pz.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["zonas"] = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT h.id, h.nombre, h.descripcion, h.id_rubro, r.nombre AS nombre_rubro
+                FROM habilidad h
+                INNER JOIN prestador_habilidad ph ON h.id = ph.id_habilidad
+                INNER JOIN rubro r ON h.id_rubro = r.id
+                WHERE ph.id_prestador = %s
+            """, (prestador_id,))
+            prestador_actualizado["habilidades"] = cursor.fetchall()
+
+            return {"detail": f"Prestador {prestador_id} dado de baja correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))

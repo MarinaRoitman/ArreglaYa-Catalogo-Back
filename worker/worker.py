@@ -82,8 +82,8 @@ def claim_one(conn):
                 return None
             c.execute("UPDATE inbound_events SET status='processing' WHERE id=%s AND status='pending'", (row["id"],))
             conn.commit()
-            logging.info(f"Mensaje detectado: messageId={row['message_id']}")
-            return row["message_id"]
+            logging.info(f"Mensaje detectado: messageId={row['message_id']}, sub_id={row.get('subscription_id')}")
+            return row["message_id"] # Agregar subscription_id
     except Exception as e:
         logging.exception(f"Error en claim_one: {e}")
         try: conn.rollback()
