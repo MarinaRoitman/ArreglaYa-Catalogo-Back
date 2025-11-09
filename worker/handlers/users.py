@@ -77,7 +77,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
 
         match user_role:
             case "cliente":
-                addresses = data.get("addresses", [])
+                addresses = data.get("address", [])
                 
                 addr_pri = addresses[0] if len(addresses) > 0 else {}
                 addr_sec = addresses[1] if len(addresses) > 1 else {}
@@ -119,7 +119,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                 response = requests.post(f"{API_BASE_URL}/admins", json=admin_body, headers=headers)
             
             case "prestador":
-                addresses = data.get("addresses", [])
+                addresses = data.get("address", [])
                 
                 addr = addresses[0] if len(addresses) > 0 else {}
                 
@@ -188,9 +188,9 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     if event_key in data:
                         patch_body[api_key] = data[event_key]
                 
-                if "addresses" in data and isinstance(data.get("addresses"), list):
-                    if len(data["addresses"]) > 0:
-                        addr_pri = data["addresses"][0]
+                if "address" in data and isinstance(data.get("address"), list):
+                    if len(data["address"]) > 0:
+                        addr_pri = data["address"][0]
                         patch_body.update({
                             "estado_pri": addr_pri.get("state"),
                             "ciudad_pri": addr_pri.get("city"),
@@ -199,8 +199,8 @@ def handle(event_name, payload, API_BASE_URL, headers):
                             "piso_pri": addr_pri.get("floor"),
                             "departamento_pri": addr_pri.get("apartment")
                         })
-                    if len(data["addresses"]) > 1:
-                        addr_sec = data["addresses"][1]
+                    if len(data["address"]) > 1:
+                        addr_sec = data["address"][1]
                         patch_body.update({
                             "estado_sec": addr_sec.get("state"),
                             "ciudad_sec": addr_sec.get("city"),
@@ -240,7 +240,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                         patch_body[api_key] = data[event_key]
 
                 # Mapeo de dirección (prestador solo tiene 1)
-                address_list = data.get("addresses", [])
+                address_list = data.get("address", [])
                 if isinstance(address_list, list) and len(address_list) > 0:
                     addr = address_list[0]
                     # Solo actualizar si el diccionario addr no está vacío
