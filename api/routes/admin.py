@@ -151,3 +151,5 @@ def delete_admin(admin_id: int, current_user: dict = Depends(require_internal_or
             return {"detail": f"Admin {admin_id} dado de baja correctamente"}
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+# Repocesar eventos
