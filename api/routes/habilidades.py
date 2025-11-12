@@ -92,8 +92,9 @@ def get_habilidad(habilidad_id: int):
     except Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Actualizar habilidad
-@router.put("/{habilidad_id}", response_model=HabilidadOut, summary="Actualizar habilidad")
+
+# Actualizar habilidad (PATCH)
+@router.patch("/{habilidad_id}", response_model=HabilidadOut, summary="Actualizar habilidad")
 def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate, current_user: dict = Depends(require_admin_role)):
     try:
         with get_connection() as (cursor, conn):
@@ -120,12 +121,15 @@ def update_habilidad(habilidad_id: int, habilidad: HabilidadUpdate, current_user
             conn.commit()
 
             if cursor.rowcount == 0:
-                raise HTTPException(status_code=404, detail="Habilidad no encontrada")
+                # Si no hubo filas afectadas, puede ser que el registro no exista
+                cursor.execute("SELECT id FROM habilidad WHERE id = %s", (habilidad_id,))
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=404, detail="Habilidad no encontrada")
 
             cursor.execute("SELECT id, nombre, descripcion, id_rubro, activo FROM habilidad WHERE id = %s", (habilidad_id,))
             updated = cursor.fetchone()
 
-            # Publicar evento de modificación (mismo patrón que zonas)
+            # Publicar evento de modificación
             topic = "habilidad"
             event_name = "modificacion"
             payload = json.dumps(updated, ensure_ascii=False)
