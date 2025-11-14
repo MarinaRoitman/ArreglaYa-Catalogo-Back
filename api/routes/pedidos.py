@@ -20,10 +20,10 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_int
             # INSERT
             query = """
                 INSERT INTO pedido (
-                    estado, descripcion, tarifa, fecha, id_prestador, id_usuario, id_habilidad, id_zona, es_critico,
-                    fecha_creacion, fecha_ultima_actualizacion
+                    estado, descripcion, tarifa, fecha, id_prestador, id_usuario, id_habilidad, direccion, es_critico,
+                    fecha_creacion, fecha_ultima_actualizacion, id_pedido
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), %s)
             """
             values = (
                 pedido.estado,
@@ -33,8 +33,9 @@ def create_pedido(pedido: PedidoCreate, current_user: dict = Depends(require_int
                 pedido.id_prestador,
                 pedido.id_usuario,
                 pedido.id_habilidad,
-                pedido.id_zona,
-                pedido.es_critico
+                pedido.direccion,
+                pedido.es_critico,
+                pedido.id_pedido
             )
             cursor.execute(query, values)
             conn.commit()
@@ -57,7 +58,7 @@ def list_pedidos(
     id_prestador: Optional[int] = None,
     estado: Optional[str] = None,
     id_habilidad: Optional[int] = None,
-    id_zona: Optional[int] = None,
+    direccion: Optional[str] = None,
     es_critico: Optional[bool] = None,
     id_pedido: Optional[int] = None,
     current_user: dict = Depends(require_internal_admin_or_prestador)
@@ -79,9 +80,9 @@ def list_pedidos(
             if id_habilidad:
                 query += " AND id_habilidad = %s"
                 params.append(id_habilidad)
-            if id_zona:
-                query += " AND id_zona = %s"
-                params.append(id_zona)
+            if direccion:
+                query += " AND direccion = %s"
+                params.append(direccion)
             if es_critico is not None:
                 query += " AND es_critico = %s"
                 params.append(es_critico)
@@ -131,7 +132,7 @@ def update_pedido(pedido_id: int, pedido: PedidoUpdate, current_user: dict = Dep
 
             query_select = """
                 SELECT 
-                    p.estado, p.descripcion, p.tarifa, p.fecha_creacion, p.fecha_ultima_actualizacion, p.fecha, p.id_habilidad, p.es_critico, p.id_zona, p.id_pedido,
+                    p.estado, p.descripcion, p.tarifa, p.fecha_creacion, p.fecha_ultima_actualizacion, p.fecha, p.id_habilidad, p.es_critico, p.direccion, p.id_pedido,
                     u.id_usuario AS id_usuario,
                     pr.id_prestador AS id_prestador
                 FROM 
@@ -224,7 +225,7 @@ def delete_pedido(pedido_id: int, current_user: dict = Depends(require_internal_
             # Obtener el pedido actualizado
             query_select = """
                 SELECT 
-                    p.estado, p.descripcion, p.tarifa, p.fecha_creacion, p.fecha_ultima_actualizacion, p.fecha, p.id_habilidad, p.es_critico, p.id_zona, p.id_pedido,
+                    p.estado, p.descripcion, p.tarifa, p.fecha_creacion, p.fecha_ultima_actualizacion, p.fecha, p.id_habilidad, p.es_critico, p.direccion, p.id_pedido,
                     u.id_usuario AS id_usuario,
                     pr.id_prestador AS id_prestador
                 FROM 

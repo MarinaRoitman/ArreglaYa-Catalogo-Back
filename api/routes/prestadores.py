@@ -435,9 +435,7 @@ def remove_zona_from_prestador(
 ):
     try:
         with get_connection() as (cursor, conn):
-            # validar solicitudes activas
-            chequear_pedidos_activos_por_zona(prestador_id, id_zona, cursor)
-            
+                    
             cursor.execute(
                 "DELETE FROM prestador_zona WHERE id_prestador = %s AND id_zona = %s",
                 (prestador_id, id_zona)

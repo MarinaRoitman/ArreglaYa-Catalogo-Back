@@ -1,6 +1,75 @@
 
 import logging, requests
 from handlers.helpers import obtener_id_real
+from datetime import datetime, timezone
+import urllib.parse
+
+
+def _normalize_fecha(fecha, horario=None):
+  """Normaliza distintos formatos de fecha/horario a un ISO datetime string.
+
+  - fecha puede ser lista [Y, M, D], string ISO, timestamp, o None
+  - horario puede ser lista [H, M]
+  Retorna string ISO (ej. '2025-11-15T09:30:00+00:00') o el valor original si no puede normalizar.
+  """
+  try:
+    if isinstance(fecha, (list, tuple)):
+      y, m, d = map(int, fecha[:3])
+      if isinstance(horario, (list, tuple)) and len(horario) >= 2:
+        hh, mm = map(int, horario[:2])
+      else:
+        hh, mm = 0, 0
+      dtobj = datetime(y, m, d, hh, mm, tzinfo=timezone.utc)
+      return dtobj.isoformat()
+
+    if isinstance(fecha, str):
+      s = fecha
+      # Manejar Z final
+      if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+      try:
+        dtobj = datetime.fromisoformat(s)
+        if dtobj.tzinfo is None:
+          dtobj = dtobj.replace(tzinfo=timezone.utc)
+        return dtobj.isoformat()
+      except Exception:
+        return fecha
+
+    if isinstance(fecha, (int, float)):
+      dtobj = datetime.fromtimestamp(float(fecha), tz=timezone.utc)
+      return dtobj.isoformat()
+
+  except Exception:
+    return fecha
+
+  return fecha
+
+
+def _find_pedido_internal_id(api_base, hdrs, prestador_internal, pedido_externo):
+  """Buscar pedido interno por id_prestador (interno) y id_pedido (externo).
+  Devuelve el campo `id` del primer resultado o None.
+  """
+  try:
+    params = {}
+    if prestador_internal is not None:
+      params["id_prestador"] = prestador_internal
+    if pedido_externo is not None:
+      params["id_pedido"] = pedido_externo
+    query = urllib.parse.urlencode(params)
+    url = f"{api_base}/pedidos"
+    if query:
+      url = f"{url}?{query}"
+    resp = requests.get(url, headers=hdrs, timeout=5)
+    if resp.status_code != 200:
+      logging.warning(f"⚠️ Búsqueda de pedido falló ({resp.status_code}): {resp.text}")
+      return None
+    items = resp.json()
+    if isinstance(items, list) and len(items) > 0:
+      return items[0].get("id")
+    return None
+  except requests.RequestException as e:
+    logging.error(f"💥 Error buscando pedido: {e}")
+    return None
 
 def handle(event_name, payload, api_base_url, headers):
   # COTIZACION CREADA --> testear
@@ -16,271 +85,166 @@ def handle(event_name, payload, api_base_url, headers):
     total_creados = 0
 
     for solicitud in solicitudes:
-        solicitud_id = solicitud.get("solicitudId")
-        descripcion = solicitud.get("descripcion")
-        es_critico = solicitud.get("esCritica", False)
-        fecha = solicitud.get("timestamp") or payload_data.get("generatedAt")
+      solicitud_id = solicitud.get("solicitudId")
+      
+      descripcion = solicitud.get("descripcion")
+      es_critico = solicitud.get("esCritica", False)
+      # Fecha puede venir como [YYYY,MM,DD] o como timestamp/ISO string
+      raw_fecha = solicitud.get("fecha") or solicitud.get("timestamp") or payload_data.get("generatedAt")
+      raw_horario = solicitud.get("horario")
+      fecha_normalizada_base = _normalize_fecha(raw_fecha, raw_horario)
 
-        # Recorrer los prestadores en top3
-        for prestador in solicitud.get("top3", []):
-            body = {
-                "id_pedido": solicitud_id,
-                "descripcion": descripcion or f"Solicitud {solicitud_id}",
-                "estado": "pendiente",
-                "es_critico": es_critico,
-                "fecha": fecha,
-                "id_habilidad": prestador.get("habilidadId"),
-                "id_prestador": prestador.get("prestadorId"),
-                "id_usuario": None,  # No viene en el payload
-                "id_zona": None,     # No viene en el payload
-                "tarifa": None       # No viene en el payload
-            }
+      id_usuario_real = solicitud.get("usuarioId")
+      id_usuario = obtener_id_real(id_usuario_real, "usuarios", "id_usuario", api_base_url, headers)
+      direccion_dict = solicitud.get("direccion")
+      if direccion_dict:
+        parts = []
+        prov = direccion_dict.get('provincia')
+        ciudad = direccion_dict.get('ciudad')
+        calle = direccion_dict.get('calle')
+        numero = direccion_dict.get('numero')
+        piso = direccion_dict.get('piso')
+        depto = direccion_dict.get('depto') or direccion_dict.get('departamento')
+        cp = direccion_dict.get('codigoPostal') or direccion_dict.get('codigo_postal')
+        if prov:
+          parts.append(prov)
+        if ciudad:
+          parts.append(ciudad)
+        if calle and numero:
+          parts.append(f"{calle} {numero}")
+        elif calle:
+          parts.append(calle)
+        if piso:
+          parts.append(f"Piso {piso}")
+        if depto:
+          parts.append(f"Depto {depto}")
+        if cp:
+          parts.append(f"CP {cp}")
+        direccion = ", ".join(parts)
+      else:
+        direccion = ""
 
-            logging.info(f"📝 Creando pedido para prestador {prestador.get('prestadorNombre')} con body: {body}")
+      # Recorrer los prestadores en top3
+      for prestador in solicitud.get("top3", []):
+        # Si el prestador trae su propio horario/fecha, priorizarlo
+        prest_fecha_raw = prestador.get("fecha") or raw_fecha
+        prest_horario_raw = prestador.get("horario") or raw_horario
+        fecha_para_prestador = _normalize_fecha(prest_fecha_raw, prest_horario_raw) if (prest_fecha_raw or prest_horario_raw) else fecha_normalizada_base
+        id_prestador = obtener_id_real(prestador.get("prestadorId"), "prestadores", "id_prestador", api_base_url, headers)
+        body = {
+          "id_pedido": solicitud_id,
+          "descripcion": descripcion or f"Solicitud {solicitud_id}",
+          "estado": "pendiente",
+          "es_critico": es_critico,
+          "fecha": fecha_para_prestador,
+          "id_habilidad": prestador.get("habilidadId"),
+          "id_prestador": id_prestador,
+          "id_usuario": id_usuario,
+          "direccion": direccion,
+          "tarifa": None
+        }
 
-            try:
-                response = requests.post(
-                    f"{api_base_url}/pedidos/",
-                    json=body,
-                    headers=headers,
-                    timeout=5
-                )
+        logging.info(f"📝 Creando pedido para prestador {prestador.get('prestadorNombre')} con body: {body}")
 
-                if response.status_code == 201:
-                    total_creados += 1
-                    logging.info(f"✅ Pedido creado correctamente para prestador {prestador.get('prestadorId')}")
-                else:
-                    logging.warning(f"⚠️ Error creando pedido ({response.status_code}): {response.text}")
+        try:
+          response = requests.post(
+            f"{api_base_url}/pedidos/",
+            json=body,
+            headers=headers,
+            timeout=5
+          )
 
-            except requests.Timeout:
-                logging.error(f"⏰ Timeout al crear pedido para prestador {prestador.get('prestadorId')}")
-            except requests.RequestException as e:
-                logging.error(f"💥 Error de request al crear pedido: {e}")
+          if response.status_code == 201:
+            total_creados += 1
+            logging.info(f"✅ Pedido creado correctamente para prestador {prestador.get('prestadorId')}")
+          else:
+            logging.warning(f"⚠️ Error creando pedido ({response.status_code}): {response.text}")
+
+        except requests.Timeout:
+          logging.error(f"⏰ Timeout al crear pedido para prestador {prestador.get('prestadorId')}")
+        except requests.RequestException as e:
+          logging.error(f"💥 Error de request al crear pedido: {e}")
 
     logging.info(f"📊 Total de pedidos creados: {total_creados}")
 
-    # COTIZACION ACEPTADA
-    if event_name == "aceptada":
-        logging.info("📦 Nueva solicitud de cotización aceptada")
-        logging.info (f"Payload recibido: {payload}")
-        data = payload.get("payload", {})
-        pedido_id = data.get("solicitud_id")
+  # COTIZACION ACEPTADA
+  elif event_name == "aceptada":
+      logging.info("📦 Nueva solicitud de cotización aceptada")
+      logging.info(f"Payload recibido: {payload}")
+      data = payload.get("payload", {})
+      if not data:
+          logging.warning("⚠️ No se encontró payload con datos de pago, evento ignorado.")
+          return
 
-        if not data:
-            logging.warning("⚠️ No se encontró payload con datos de pago, evento ignorado.")
-            return
+      pedido_externo = data.get("solicitud_id")
+      prestador_ext = data.get("prestador_id")
+
+      prestador_int = None
+      if prestador_ext is not None:
+          try:
+              prestador_int = obtener_id_real(prestador_ext, "prestadores", "id_prestador", api_base_url, headers)
+          except Exception:
+              prestador_int = None
+
+      id_pedido_internal = _find_pedido_internal_id(api_base_url, headers, prestador_int, pedido_externo)
+      if id_pedido_internal is None:
+          logging.warning(f"⚠️ No se encontró pedido interno para solicitud {pedido_externo} y prestador {prestador_ext}")
+          return
 
       # Normalización del payload
-        body = {
-            "estado":"aprobado_por_usuario",
-            "tarifa": data.get("monto")
-        }
-        logging.info(f"🔄 Payload normalizado: {body}")
+      body = {
+          "estado": "aprobado_por_usuario",
+          "tarifa": data.get("monto")
+      }
+      logging.info(f"🔄 Payload normalizado: {body}")
 
-
-        id_pedido = obtener_id_real(pedido_id,"pedidos","id_pedido",api_base_url,headers)
-
-        # persistir en la tabla pedidos
-        try:
-            response = requests.patch(
-            f"{api_base_url}/pedidos/{id_pedido}",
-            json=body,
-            timeout=5,
-            headers=headers
-            )
-            logging.info(f"Respuesta del API al actualizar el pedido: {response.status_code} - {response.text}")
-            if response.status_code == 200:
-              logging.info("✅ Cotización aceptada")
-        except requests.Timeout:
-            logging.error("⏰ Timeout al crear pedido")
-        except requests.RequestException as e:
-            logging.error(f"💥 Error al crear pedido: {e}")
-
-    # COTIZACION RECHAZADA (igual que cancelación de pedidos)
-    elif event_name == "rechazada":
-      logging.info("📦 Nueva solicitud de pedido cancelado")
-      logging.info (f"Payload recibido: {payload}")
-      data = payload.get("payload", {})
-      pedido_id = data.get("solicitud_id")
-
-      if not data:
-        logging.warning("⚠️ No se encontró payload con datos de pago, evento ignorado.")
-        return
-
-      id_pedido = obtener_id_real(pedido_id,"pedidos","id_pedido",api_base_url,headers)
-
+      # persistir en la tabla pedidos
       try:
-          response = requests.delete(
-              f"{api_base_url}/pedidos/{id_pedido}",
+          response = requests.patch(
+              f"{api_base_url}/pedidos/{id_pedido_internal}",
+              json=body,
               timeout=5,
               headers=headers
           )
-          logging.info(f"Respuesta del API al cancelar el pedido: {response.status_code} - {response.text}")
+          logging.info(f"Respuesta del API al actualizar el pedido: {response.status_code} - {response.text}")
+          if response.status_code == 200:
+              logging.info("✅ Cotización aceptada")
       except requests.Timeout:
-          logging.error("⏰ Timeout al cancelar pedido")
+          logging.error("⏰ Timeout al crear pedido")
       except requests.RequestException as e:
-          logging.error(f"💥 Error al cancelar pedido: {e}")
+          logging.error(f"💥 Error al crear pedido: {e}")
 
+  # COTIZACION RECHAZADA (igual que cancelación de pedidos)
+  elif event_name == "rechazada":
+    logging.info("📦 Nueva solicitud de pedido cancelado")
+    logging.info(f"Payload recibido: {payload}")
+    data = payload.get("payload", {})
+    if not data:
+      logging.warning("⚠️ No se encontró payload con datos de pago, evento ignorado.")
+      return
 
-        
-    
+    pedido_externo = data.get("solicitud_id")
+    prestador_ext = data.get("prestador_id")
+    prestador_int = None
+    if prestador_ext is not None:
+      try:
+        prestador_int = obtener_id_real(prestador_ext, "prestadores", "id_prestador", api_base_url, headers)
+      except Exception:
+        prestador_int = None
 
-"""
+    id_pedido_internal = _find_pedido_internal_id(api_base_url, headers, prestador_int, pedido_externo)
+    if id_pedido_internal is None:
+      logging.warning(f"⚠️ No se encontró pedido interno para solicitud {pedido_externo} y prestador {prestador_ext}")
+      return
 
-ejemplo aceptada:
-{
-  "messageId": "2",
-  "timestamp": "2025-09-27T14:01:19.663Z",
-  "destination": {
-    "topic": "cotizacion",
-    "eventName": "aceptada"
-  },
-  "payload": {
-    "solicitud_id": 120045,
-    "usuario_id": 901,
-    "prestador_id": 5552,
-    "monto": 72000
-  }
-}
-
-ejemplo rechazada:
-
-{
-  "messageId": "1",
-  "timestamp": "2025-09-27T14:00:19.663Z",
-  "destination": {
-    "topic": "cotizacion",
-    "eventName": "rechazada"
-  },
-  "payload": {
-    "cotizacion_id": 774002,
-    "solicitud_id": 120045,
-    "usuario_id": 901,
-    "prestador_id": 5553,
-    "comentario": "Me queda alto el presupuesto."
-  }
-}
-
-
-cotizacion emitida
-
-{
-  "messageId": "90e440da-f3f6-4e14-ba8e-1652d83b4714",
-  "timestamp": "2025-10-24T21:57:43.327443Z",
-  "destination": {
-    "topic": "cotizacion",
-    "eventName": "emitida"
-  },
-  "payload": {
-    "generatedAt": "2025-10-24T21:57:43.327198Z",
-    "solicitudes": [
-      {
-        "solicitudId": 1001,
-        "descripcion": "Pintar living y pasillo",
-        "estado": "COTIZANDO",
-        "fueCotizada": true,
-        "esCritica": false,
-        "top3": [
-          {
-            "prestadorId": 2,
-            "prestadorNombre": "Maria Gomez",
-            "mensaje": "Invitación a cotizar 1001",
-            "enviado": true,
-            "timestamp": "2025-10-24T18:57:43.293618Z",
-            "habilidadId": 4,
-            "rubroId": 3,
-            "cotizacionId": null,
-            "solicitudId": 1001
-          },
-          {
-            "prestadorId": 6,
-            "prestadorNombre": "Laura Benitez",
-            "mensaje": "Invitación a cotizar 1001",
-            "enviado": true,
-            "timestamp": "2025-10-24T18:57:43.301615Z",
-            "habilidadId": 4,
-            "rubroId": 3,
-            "cotizacionId": null,
-            "solicitudId": 1001
-          }
-        ]
-      },
-      {
-        "solicitudId": 1002,
-        "descripcion": "Salta la térmica con frecuencia",
-        "estado": "COTIZANDO",
-        "fueCotizada": true,
-        "esCritica": true,
-        "top3": [
-          {
-            "prestadorId": 4,
-            "prestadorNombre": "Sofia Martinez",
-            "mensaje": "Invitación a cotizar 1002",
-            "enviado": true,
-            "timestamp": "2025-10-24T18:57:43.309851Z",
-            "habilidadId": 5,
-            "rubroId": 2,
-            "cotizacionId": null,
-            "solicitudId": 1002
-          },
-          {
-            "prestadorId": 5,
-            "prestadorNombre": "Diego Ruiz",
-            "mensaje": "Invitación a cotizar 1002",
-            "enviado": true,
-            "timestamp": "2025-10-24T18:57:43.312825Z",
-            "habilidadId": 5,
-            "rubroId": 2,
-            "cotizacionId": null,
-            "solicitudId": 1002
-          },
-          {
-            "prestadorId": 3,
-            "prestadorNombre": "Carlos Lopez",
-            "mensaje": "Invitación a cotizar 1002",
-            "enviado": true,
-            "timestamp": "2025-10-24T18:57:43.315158Z",
-            "habilidadId": 5,
-            "rubroId": 2,
-            "cotizacionId": null,
-            "solicitudId": 1002
-          }
-        ]
-      },
-      {
-        "solicitudId": 120045,
-        "descripcion": "Pérdida en la canilla del baño.",
-        "estado": "COTIZANDO",
-        "fueCotizada": true,
-        "esCritica": false,
-        "top3": [
-          {
-            "prestadorId": 1,
-            "prestadorNombre": "Juan Perez",
-            "mensaje": "Invitación a cotizar 120045",
-            "enviado": true,
-            "timestamp": "2025-10-24T18:57:43.322536Z",
-            "habilidadId": 120,
-            "rubroId": 1,
-            "cotizacionId": null,
-            "solicitudId": 120045
-          },
-          {
-            "prestadorId": 7,
-            "prestadorNombre": "Marcelo Ibarra",
-            "mensaje": "Invitación a cotizar 120045",
-            "enviado": true,
-            "timestamp": "2025-10-24T18:57:43.325289Z",
-            "habilidadId": 120,
-            "rubroId": 1,
-            "cotizacionId": null,
-            "solicitudId": 120045
-          }
-        ]
-      }
-    ]
-  }
-}
-
-
-"""
+    try:
+      response = requests.delete(
+        f"{api_base_url}/pedidos/{id_pedido_internal}",
+        timeout=5,
+        headers=headers
+      )
+      logging.info(f"Respuesta del API al cancelar el pedido: {response.status_code} - {response.text}")
+    except requests.Timeout:
+      logging.error("⏰ Timeout al cancelar pedido")
+    except requests.RequestException as e:
+      logging.error(f"💥 Error al cancelar pedido: {e}")
