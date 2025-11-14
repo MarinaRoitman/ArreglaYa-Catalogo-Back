@@ -51,7 +51,7 @@ def process_message(conn, msg_id):
             c.execute("UPDATE inbound_events SET status='done', processed_at=NOW() WHERE message_id=%s", (msg_id,))
         conn.commit()
 
-        #send_ack(msg_id, sub_id)
+        send_ack(msg_id, sub_id)
         logging.info(f"✅ Mensaje procesado OK: {msg_id}")
 
     except Exception as e:
