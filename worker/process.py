@@ -14,48 +14,83 @@ headers = {
 
 def process_message(conn, msg_id):
     try:
+        # --------------------
+        # 1) Obtener evento
+        # --------------------
         with conn.cursor() as c:
             c.execute("SELECT * FROM inbound_events WHERE message_id=%s", (msg_id,))
             event = c.fetchone()
 
         if not event:
+            logging.warning(f" Mensaje no encontrado en inbound_events: {msg_id}")
             return
 
-        payload = json.loads(event["payload"])
-        topic = event["topic"]
-        event_name = event["event_name"]
-        sub_id = event["subscription_id"]
+        topic = event.get("topic")
+        event_name = event.get("event_name")
+        sub_id = event.get("subscription_id")
 
-        logging.info(f"🔍 Procesando {topic} - {event_name}")
+        # --------------------
+        # 2) Validaciones básicas
+        # --------------------
+        if not topic or not event_name:
+            logging.error(f"❌ Evento inválido en DB (topic/event_name faltan) → msg_id={msg_id}")
+            return
 
-        # Despachador según canal (hay que completar con el resto de los canales)
+        try:
+            payload = json.loads(event["payload"])
+        except Exception:
+            logging.error(f"❌ Payload inválido (no es JSON válido) → msg_id={msg_id}")
+            return
+
+        logging.info(f"🔍 Procesando evento → topic={topic} | event={event_name}")
+
+        # --------------------
+        # 3) Dispatch según topic
+        # --------------------
         if topic == "user":
-            # Usuarios (clientes, prestadores, admins)
-            logging.info("headers inside process_message: ", headers)
             users.handle(event_name, payload, API_BASE_URL, headers)
 
         elif topic == "calificacion":
-            # El cliente creó una calificación
             reviews.handle(event_name, payload, API_BASE_URL, headers)
 
-        elif topic ==  "solicitud" or "cotizacion":
-            if event_name == "cancelada":
-                orders.handle("rechazada", payload, API_BASE_URL, headers)
-            else:
-                orders.handle(event_name, payload, API_BASE_URL, headers)
+        elif topic in ("solicitud", "cotizacion"):
+            # La cancelación en matching implica rechazo en ORDERS
+            mapped_event = "rechazada" if event_name == "cancelada" else event_name
+            orders.handle(mapped_event, payload, API_BASE_URL, headers)
+
         else:
-            logging.info(f"⚠️ Evento no reconocido: {topic}")
+            logging.info(f"⚠️ Topic no reconocido, evento ignorado → topic={topic}")
             return
 
+        # --------------------
+        # 4) Marcar como procesado
+        # --------------------
         with conn.cursor() as c:
-            c.execute("UPDATE inbound_events SET status='done', processed_at=NOW() WHERE message_id=%s", (msg_id,))
+            c.execute("""
+                UPDATE inbound_events 
+                SET status='done', processed_at=NOW() 
+                WHERE message_id=%s
+            """, (msg_id,))
         conn.commit()
 
-        #send_ack(msg_id, sub_id)
-        logging.info(f"✅ Mensaje procesado OK: {msg_id}")
+        # --------------------
+        # 5) ACK al Core
+        # --------------------
+        send_ack(msg_id, sub_id)
+
+        logging.info(f"✅ Mensaje procesado correctamente → msg_id={msg_id}")
 
     except Exception as e:
-        logging.exception(f"💥 Error procesando {msg_id}: {e}")
+        # --------------------
+        # 6) Error en procesamiento
+        # --------------------
+        logging.exception(f"💥 Error procesando msg_id={msg_id}: {e}")
+
         with conn.cursor() as c:
-            c.execute("UPDATE inbound_events SET status='error', error_text=%s WHERE message_id=%s", (str(e), msg_id))
+            c.execute("""
+                UPDATE inbound_events 
+                SET status='error', error_text=%s 
+                WHERE message_id=%s
+            """, (str(e), msg_id))
         conn.commit()
+

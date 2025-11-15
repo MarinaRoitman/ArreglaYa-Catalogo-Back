@@ -1,20 +1,27 @@
-import os, requests, logging
+import os
+import requests
+import logging
 
-CORE_ACK_URL = "https://api.arreglacore.click/messages/ack/{subscription_id}"
+CORE_ACK_URL = "https://nonprodapi.uade-corehub.com/messages/ack/{subscriptionId}"
 CORE_API_KEY = os.getenv("CORE_API_KEY")
 
-def send_ack(msg_id, subscription_id):
+def send_ack(message_id, subscription_id):
     if not subscription_id:
-        logging.warning(f"No hay subscription_id para {msg_id}, omitiendo ACK.")
+        logging.warning(f"No hay subscription_id para {message_id}, omitiendo ACK.")
         return
 
-    url = CORE_ACK_URL.format(msgId=msg_id)
-    payload = {"msgId": msg_id}
-    headers = {"X-API-KEY": CORE_API_KEY, "Content-Type": "application/json"}
+    # URL correcta reemplazando subscriptionId
+    url = CORE_ACK_URL.format(subscriptionId=subscription_id)
+
+    payload = {"messageId": message_id}
+    headers = {
+        "X-API-KEY": CORE_API_KEY,
+        "Content-Type": "application/json"
+    }
 
     try:
-        r = requests.post(url, headers=headers, json=payload, timeout=5)
+        r = requests.post(url, json=payload, headers=headers, timeout=5)
         r.raise_for_status()
-        logging.info(f"ACK enviado correctamente para {msg_id}")
+        logging.info(f"ACK enviado correctamente para {message_id}")
     except Exception as e:
-        logging.warning(f"Fallo al enviar ACK para {msg_id}: {e}")
+        logging.warning(f"Fallo al enviar ACK para {message_id}: {e}")
