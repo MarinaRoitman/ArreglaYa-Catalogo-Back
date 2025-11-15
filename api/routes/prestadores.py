@@ -45,8 +45,7 @@ def list_prestadores(
     id_zona: Optional[int] = None,
     dni: Optional[str] = None,
     activo: Optional[bool] = None,
-    id_prestador: Optional[int] = None,
-    current_user: dict = Depends(require_internal_admin_or_prestador)
+    id_prestador: Optional[int] = None
 ):
     try:        
         with get_connection() as (cursor, conn):
