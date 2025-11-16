@@ -4,7 +4,7 @@ from typing import List, Optional
 from mysql.connector import Error
 from core.database import get_connection
 from schemas.prestador import PrestadorCreate, PrestadorUpdate, PrestadorOut
-from core.security import get_password_hash, require_admin_role, require_prestador_role, require_admin_or_prestador_role, require_internal_or_admin, require_internal_admin_or_prestador
+from core.security import require_admin_role, require_prestador_role, require_admin_or_prestador_role, require_internal_or_admin, require_internal_admin_or_prestador
 from decimal import Decimal
 import json
 from datetime import datetime, timezone
@@ -193,10 +193,10 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
                 raise HTTPException(status_code=400, detail="El teléfono debe ser numérico")
             if "dni" in data and data["dni"] and not data["dni"].isdigit():
                 raise HTTPException(status_code=400, detail="El dni debe ser numérico")
+            
             if "contrasena" in data and data.get("contrasena"):
-                hashed_password = get_password_hash(data["contrasena"])
                 fields.append("password=%s")
-                values.append(hashed_password)
+                values.append(data["contrasena"])
                 del data["contrasena"]
 
             for key, value in data.items():
@@ -236,8 +236,15 @@ def update_prestador(prestador_id: int, prestador: PrestadorUpdate, current_user
 
             # --- Publicar evento de modificación ---
             topic = "prestador"
-            event_name = "modificacion"
+            event_name = "modificacion"            
             prestador_json = convert_to_json_safe(result)
+            
+            # Si no se envió contrasena en el PATCH, no incluir password en el evento
+            original_data = prestador.model_dump(exclude_unset=True)
+            if "contrasena" not in original_data or not original_data.get("contrasena"):
+                if "password" in prestador_json:
+                    del prestador_json["password"]
+            
             payload_str = json.dumps(prestador_json, ensure_ascii=False)
 
             cursor.execute(
