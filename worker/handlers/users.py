@@ -114,7 +114,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "password": data.get("password", None),
                     "id_admin": user_id_int,
                     "activo": data.get("activo", True),
-                    "foto": data.get("foto", None)
+                    "profileImageUrl": data.get("foto", None)
                 }
                 response = requests.post(f"{API_BASE_URL}/admins", json=admin_body, headers=headers)
             
@@ -130,7 +130,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "password": data.get("password", None),
                     "telefono": data.get("phoneNumber"),
                     "dni": data.get("dni"),
-                    "foto": data.get("foto", None),
+                    "foto": data.get("profileImageUrl", None),
                     "estado": addr.get("state"),
                     "ciudad": addr.get("city"),
                     "calle": addr.get("street"),
@@ -182,7 +182,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "lastName": "apellido",
                     "dni": "dni",
                     "phoneNumber": "telefono",
-                    "foto": "foto" 
+                    "foto": "profileImageUrl" 
                 }
                 for event_key, api_key in field_map.items():
                     if event_key in data:
@@ -218,7 +218,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "lastName": "apellido",
                     "email": "email",
                     "password": "password",
-                    "foto": "foto"
+                    "foto": "profileImageUrl"
                 }
                 for event_key, api_key in field_map.items():
                     if event_key in data:
@@ -233,7 +233,7 @@ def handle(event_name, payload, API_BASE_URL, headers):
                     "phoneNumber": "telefono",
                     "password": "contrasena",
                     "dni": "dni",
-                    "foto": "foto"
+                    "foto": "profileImageUrl"
                 }
                 for event_key, api_key in field_map.items():
                     if event_key in data:
