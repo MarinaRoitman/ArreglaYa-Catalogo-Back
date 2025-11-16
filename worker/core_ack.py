@@ -2,7 +2,7 @@ import os
 import requests
 import logging
 
-CORE_ACK_URL = "https://nonprodapi.uade-corehub.com/messages/ack/{subscriptionId}"
+CORE_ACK_URL = "https://api.arreglacore.click/messages/ack/{subscriptionId}"
 CORE_API_KEY = os.getenv("CORE_API_KEY")
 
 def send_ack(message_id, subscription_id):
