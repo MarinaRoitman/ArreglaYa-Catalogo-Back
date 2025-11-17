@@ -84,7 +84,7 @@ def list_habilidades(nombre: str = None, id_rubro: int = None, activo: bool = No
 def get_habilidad(habilidad_id: int):
     try:
         with get_connection() as (cursor, conn):
-            cursor.execute("SELECT id, nombre, descripcion, id_rubro FROM habilidad WHERE id = %s", (habilidad_id,))
+            cursor.execute("SELECT id, nombre, descripcion, id_rubro, activo FROM habilidad WHERE id = %s", (habilidad_id,))
             result = cursor.fetchone()
             if not result:
                 raise HTTPException(status_code=404, detail="Habilidad no encontrada")
