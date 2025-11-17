@@ -63,7 +63,7 @@ def create_habilidad(habilidad: HabilidadCreate):
 def list_habilidades(nombre: str = None, id_rubro: int = None, activo: bool = None):
     try:
         with get_connection() as (cursor, conn):
-            query = "SELECT id, nombre, descripcion, id_rubro, activo FROM habilidad WHERE 1=1 and activo <> 0"
+            query = "SELECT id, nombre, descripcion, id_rubro, activo FROM habilidad WHERE 1=1"
             params = []
             if nombre:
                 query += " AND nombre LIKE %s"
