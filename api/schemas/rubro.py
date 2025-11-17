@@ -4,6 +4,7 @@ from typing import Optional
 
 class RubroBase(BaseModel):
     nombre: str
+    activo: Optional[bool] = None
 
 class RubroCreate(RubroBase):
     pass
