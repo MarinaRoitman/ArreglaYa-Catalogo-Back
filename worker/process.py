@@ -55,8 +55,7 @@ def process_message(conn, msg_id):
 
         elif topic in ("solicitud", "cotizacion"):
             # La cancelación en matching implica rechazo en ORDERS
-            mapped_event = "rechazada" if event_name == "cancelada" else event_name
-            orders.handle(mapped_event, payload, API_BASE_URL, headers)
+            orders.handle(event_name, payload, API_BASE_URL, headers)
 
         else:
             logging.info(f"⚠️ Topic no reconocido, evento ignorado → topic={topic}")

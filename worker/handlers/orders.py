@@ -248,3 +248,53 @@ def handle(event_name, payload, api_base_url, headers):
       logging.error("⏰ Timeout al cancelar pedido")
     except requests.RequestException as e:
       logging.error(f"💥 Error al cancelar pedido: {e}")
+  
+  elif event_name == "cancelada":
+    logging.info("📦 Evento de cotización cancelada - marcar pedidos como cancelado")
+    logging.info(f"Payload recibido: {payload}")
+    data = payload.get("payload", {})
+    if not data:
+      logging.warning("⚠️ No se encontró payload con datos, evento ignorado.")
+      return
+
+    # Aceptamos varias claves que pueden nombrar al id externo
+    solicitud_id = data.get("solicitud_id")
+    if not solicitud_id:
+      logging.warning("⚠️ No se encontró 'solicitud_id' en el payload, evento ignorado.")
+      return
+
+    try:
+      # Obtener todos los pedidos que coincidan con el id_pedido externo
+      url = f"{api_base_url}/pedidos"
+      resp = requests.get(url, headers=headers, params={"id_pedido": solicitud_id}, timeout=5)
+      if resp.status_code != 200:
+        logging.warning(f"⚠️ Falló la búsqueda de pedidos para solicitud {solicitud_id} ({resp.status_code}): {resp.text}")
+        return
+
+      items = resp.json()
+      if not isinstance(items, list) or len(items) == 0:
+        logging.info(f"ℹ️ No se encontraron pedidos para solicitud {solicitud_id}.")
+        return
+
+      # Actualizar cada pedido a estado 'cancelado'
+      for item in items:
+        pedido_internal_id = item.get("id")
+        if not pedido_internal_id:
+          continue
+        try:
+          patch_resp = requests.patch(
+            f"{api_base_url}/pedidos/{pedido_internal_id}",
+            json={"estado": "cancelado"},
+            timeout=5,
+            headers=headers
+          )
+          logging.info(f"Respuesta al actualizar pedido {pedido_internal_id}: {patch_resp.status_code} - {patch_resp.text}")
+          if patch_resp.status_code == 200:
+            logging.info(f"✅ Pedido interno {pedido_internal_id} marcado como 'cancelado'")
+        except requests.Timeout:
+          logging.error(f"⏰ Timeout al actualizar pedido {pedido_internal_id}")
+        except requests.RequestException as e:
+          logging.error(f"💥 Error al actualizar pedido {pedido_internal_id}: {e}")
+
+    except requests.RequestException as e:
+      logging.error(f"💥 Error buscando pedidos para solicitud {solicitud_id}: {e}")
