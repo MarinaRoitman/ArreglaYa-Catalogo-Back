@@ -118,7 +118,7 @@ def handle(event_name, payload, api_base_url, headers):
       descripcion = solicitud.get("descripcion")
       es_critico = solicitud.get("esCritica", False)
       # Fecha puede venir como [YYYY,MM,DD] o como timestamp/ISO string
-      raw_fecha = solicitud.get("fecha") or solicitud.get("timestamp") or payload_data.get("generatedAt")
+      raw_fecha = solicitud.get("fecha")
       raw_horario = solicitud.get("horario")
       fecha_normalizada_base = _normalize_fecha(raw_fecha, raw_horario)
 
