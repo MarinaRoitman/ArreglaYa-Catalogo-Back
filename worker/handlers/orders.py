@@ -27,7 +27,35 @@ def _normalize_fecha(fecha, horario=None):
       # Manejar Z final
       if s.endswith("Z"):
         s = s[:-1] + "+00:00"
+
+      # Intentar parsear horario si viene como string "HH:MM"
+      hh = None
+      mm = None
+      if horario is not None:
+        if isinstance(horario, (list, tuple)) and len(horario) >= 2:
+          try:
+            hh, mm = map(int, horario[:2])
+          except Exception:
+            hh = mm = None
+        elif isinstance(horario, str):
+          try:
+            parts = horario.split(":")
+            hh = int(parts[0])
+            mm = int(parts[1]) if len(parts) > 1 else 0
+          except Exception:
+            hh = mm = None
+
+      # Fecha en formato 'YYYY-MM-DD' -> combinar con horario si existe
       try:
+        if len(s) == 10 and s.count("-") == 2:
+          y, mo, d = map(int, s.split("-"))
+          if hh is None:
+            hh = 0
+            mm = 0
+          dtobj = datetime(y, mo, d, hh, mm, tzinfo=timezone.utc)
+          return dtobj.isoformat()
+
+        # Intentar parsear ISO completo (datetime con o sin timezone)
         dtobj = datetime.fromisoformat(s)
         if dtobj.tzinfo is None:
           dtobj = dtobj.replace(tzinfo=timezone.utc)
